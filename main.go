@@ -251,11 +251,31 @@ func main() {
 	})
 
 	// Start the app.
-	srv := &http.Server{
-		Addr:    ko.String("app.address"),
-		Handler: r,
+	var srv interface {
+		ListenAndServe() error
 	}
-	logger.Printf("starting server on %v", ko.String("app.address"))
+
+	if appAddress := ko.String("app.address"); appAddress == "tor" {
+		pkPath := ko.String("app.privatekey")
+		pk, err := getOrCreatePK(pkPath)
+		if err != nil {
+			logger.Fatalf("could not create the private key file: %v", err)
+		}
+
+		srv = &torServer{
+			PrivateKey: pk,
+			Handler:    r,
+		}
+		logger.Printf("starting server on http://%v", onionAddr(pk))
+
+	} else {
+		srv = &http.Server{
+			Addr:    appAddress,
+			Handler: r,
+		}
+		logger.Printf("starting server on http://%v", appAddress)
+	}
+
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Fatalf("couldn't start server: %v", err)
 	}

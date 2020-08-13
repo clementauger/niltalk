@@ -1,4 +1,5 @@
 [app]
+# Address to listen, use "tor" to run an hidden service.
 address = "0.0.0.0:9000"
 
 # No trailing slashes.
@@ -39,6 +40,9 @@ session_cookie = "niltoken"
 
 # Storage kind, one of redis or memory.
 storage = "redis"
+
+# Path to the private key file for the onion address.
+privatekey = ""
 
 # Redis cache server.
 # Rooms are cached until they expires. Messages are not cached.
