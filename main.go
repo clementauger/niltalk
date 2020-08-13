@@ -266,7 +266,7 @@ func main() {
 			PrivateKey: pk,
 			Handler:    r,
 		}
-		logger.Printf("starting server on http://%v", onionAddr(pk))
+		logger.Printf("starting server on http://%v.onion", onionAddr(pk))
 
 	} else {
 		srv = &http.Server{
