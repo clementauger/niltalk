@@ -152,7 +152,7 @@ func (r *Redis) AddSession(sessID, handle, roomID string, ttl time.Duration) err
 	return c.Flush()
 }
 
-// GetSession retrieves a peer session from th store.
+// GetSession retrieves a peer session from the store.
 func (r *Redis) GetSession(sessID, roomID string) (store.Sess, error) {
 	c := r.pool.Get()
 	defer c.Close()
