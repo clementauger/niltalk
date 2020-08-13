@@ -24,6 +24,8 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/niltalk/internal/hub"
+	"github.com/knadh/niltalk/store"
+	"github.com/knadh/niltalk/store/mem"
 	"github.com/knadh/niltalk/store/redis"
 	"github.com/knadh/stuffbin"
 	flag "github.com/spf13/pflag"
@@ -195,14 +197,33 @@ func main() {
 	}
 
 	// Initialize store.
-	var storeCfg redis.Config
-	if err := ko.Unmarshal("store", &storeCfg); err != nil {
-		logger.Fatalf("error unmarshalling 'store' config: %v", err)
-	}
+	var store store.Store
+	if app.cfg.Storage == "redis" {
+		var storeCfg redis.Config
+		if err := ko.Unmarshal("store", &storeCfg); err != nil {
+			logger.Fatalf("error unmarshalling 'store' config: %v", err)
+		}
 
-	store, err := redis.New(storeCfg)
-	if err != nil {
-		log.Fatalf("error initializing store: %v", err)
+		s, err := redis.New(storeCfg)
+		if err != nil {
+			log.Fatalf("error initializing store: %v", err)
+		}
+		store = s
+
+	} else if app.cfg.Storage == "memory" {
+		var storeCfg mem.Config
+		if err := ko.Unmarshal("store", &storeCfg); err != nil {
+			logger.Fatalf("error unmarshalling 'store' config: %v", err)
+		}
+
+		s, err := mem.New(storeCfg)
+		if err != nil {
+			log.Fatalf("error initializing store: %v", err)
+		}
+		store = s
+
+	} else {
+		logger.Fatal("app.storage must be one of redis or memory")
 	}
 	app.hub = hub.NewHub(app.cfg, store, logger)
 
