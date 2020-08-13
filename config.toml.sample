@@ -37,6 +37,9 @@ websocket_timeout = "3s"
 # Session cookie name.
 session_cookie = "niltoken"
 
+# Storage kind, one of redis or memory.
+storage = "redis"
+
 # Redis cache server.
 # Rooms are cached until they expires. Messages are not cached.
 [store]
