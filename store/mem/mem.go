@@ -159,7 +159,7 @@ func (m *InMemory) GetSession(sessID, roomID string) (store.Sess, error) {
 
 	handle, ok := room.Sessions[sessID]
 
-	if !ok || handle == "" {
+	if !ok {
 		return store.Sess{}, nil
 	}
 
