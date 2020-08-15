@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/gorilla/websocket"
 	"github.com/knadh/niltalk/internal/hub"
+	"github.com/knadh/niltalk/internal/upload"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -326,4 +331,62 @@ func readJSONReq(r *http.Request, o interface{}) error {
 		return err
 	}
 	return json.Unmarshal(b, o)
+}
+
+// handleUpload handles file uploads.
+func handleUpload(store *upload.Store, maxUploadSize int64) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.ParseMultipartForm(maxUploadSize)
+
+		var ids []string
+		for i := 0; i < 100; i++ {
+			key := fmt.Sprintf("file%v", i)
+			file, handler, err := r.FormFile(key)
+			if err == http.ErrMissingFile {
+				break
+			}
+			if err != nil {
+				continue
+			}
+			defer file.Close()
+			b, err := ioutil.ReadAll(file)
+			if err != nil {
+				continue
+			}
+			mimeType := http.DetectContentType(b)
+			if mimeType == "image/gif" || mimeType == "image/jpeg" || mimeType == "image/png" {
+				name := handler.Filename
+				up, err := store.Add(name, mimeType, b)
+				if err != nil {
+					continue
+				}
+				ids = append(ids, fmt.Sprintf("%v_%v", up.ID, up.Name))
+			}
+		}
+
+		respondJSON(w, struct {
+			IDs []string `json:"ids"`
+		}{ids}, nil, http.StatusOK)
+	}
+}
+
+// handleUploaded uploaded files display.
+func handleUploaded(store *upload.Store, maxAge time.Duration) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fileID := chi.URLParam(r, "fileID")
+		fileID = strings.Split(fileID, "_")[0]
+		up, err := store.Get(fileID)
+		if err != nil {
+			log.Println(err)
+			respondJSON(w, nil, err, http.StatusNotFound)
+			return
+		}
+		w.Header().Add("Content-Type", up.MimeType)
+		w.Header().Add("Content-Length", fmt.Sprint(len(up.Data)))
+		if maxAge > 0 {
+			w.Header().Add("Cache-Control", fmt.Sprintf("max-age=%v", maxAge.Seconds()))
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(up.Data)
+	}
 }

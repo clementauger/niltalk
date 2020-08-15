@@ -17,13 +17,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alecthomas/units"
 	"github.com/go-chi/chi"
+	"github.com/karrick/tparse/v2"
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/niltalk/internal/hub"
+	"github.com/knadh/niltalk/internal/upload"
 	"github.com/knadh/niltalk/store"
 	"github.com/knadh/niltalk/store/mem"
 	"github.com/knadh/niltalk/store/redis"
@@ -234,6 +237,40 @@ func main() {
 	}
 	app.tpl = tpl
 
+	// Setup the file upload store.
+	var uploadCfg upload.Config
+	if err := ko.Unmarshal("upload", &uploadCfg); err != nil {
+		logger.Fatalf("error unmarshalling 'upload' config: %v", err)
+	}
+	var maxMemory int64 = 32 << 20
+	if uploadCfg.MaxMemory != "" {
+		x, err := units.ParseStrictBytes(uploadCfg.MaxMemory)
+		if err != nil {
+			logger.Fatalf("error unmarshalling 'upload.max-memory' config: %v", err)
+		}
+		maxMemory = x
+	}
+
+	uploadStore := upload.New(uploadCfg, maxMemory)
+
+	var maxUploadSize int64 = 32 << 20
+	if uploadCfg.MaxUploadSize != "" {
+		x, err := units.ParseStrictBytes(uploadCfg.MaxUploadSize)
+		if err != nil {
+			logger.Fatalf("error unmarshalling 'upload.max-upload-size' config: %v", err)
+		}
+		maxUploadSize = x
+	}
+
+	var maxAge time.Duration = time.Hour * 24 * 30 * 12
+	if uploadCfg.MaxAge != "" {
+		x, err := tparse.AbsoluteDuration(time.Now(), uploadCfg.MaxAge)
+		if err != nil {
+			logger.Fatalf("error unmarshalling 'upload.max-age' config: %v", err)
+		}
+		maxAge = x
+	}
+
 	// Register HTTP routes.
 	r := chi.NewRouter()
 	r.Get("/", wrap(handleIndex, app, 0))
@@ -243,6 +280,8 @@ func main() {
 	r.Post("/api/rooms/{roomID}/login", wrap(handleLogin, app, hasRoom))
 	r.Delete("/api/rooms/{roomID}/login", wrap(handleLogout, app, hasAuth|hasRoom))
 	r.Post("/api/rooms", wrap(handleCreateRoom, app, 0))
+	r.Post("/api/upload", handleUpload(uploadStore, maxUploadSize))
+	r.Get("/api/uploaded/{fileID}", handleUploaded(uploadStore, maxAge))
 
 	// Views.
 	r.Get("/r/{roomID}", wrap(handleRoomPage, app, hasAuth|hasRoom))
