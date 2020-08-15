@@ -53,7 +53,7 @@ func (m *InMemory) cleanup() {
 	now := time.Now()
 
 	for id, r := range m.rooms {
-		if r.Expire.After(now) {
+		if r.Expire.Before(now) {
 			delete(m.rooms, id)
 			continue
 		}
