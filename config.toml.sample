@@ -56,3 +56,9 @@ timeout = "3s"
 
 prefix_room = "NIL:ROOM:%s"
 prefix_session = "NIL:SESS:ROOM:%s"
+
+# File upload configuration.
+[upload]
+max-memory=32Mb
+max-upload-size=2Mb
+max-age=1year
