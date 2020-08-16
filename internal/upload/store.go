@@ -10,9 +10,12 @@ import (
 
 // Config represents the file upload options.
 type Config struct {
-	MaxMemory     string `koanf:"max-memory"`
-	MaxUploadSize string `koanf:"max-upload-size"`
-	MaxAge        string `koanf:"max-age"`
+	MaxMemory       string `koanf:"max-memory"`
+	MaxUploadSize   string `koanf:"max-upload-size"`
+	MaxAge          string `koanf:"max-age"`
+	RateLimitPeriod string `koanf:"rate-limit-period"`
+	RateLimitCount  string `koanf:"rate-limit-count"`
+	RateLimitBurst  string `koanf:"rate-limit-burst"`
 }
 
 // Store file uploads in memory.

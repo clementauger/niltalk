@@ -466,16 +466,24 @@ var app = new Vue({
           // this tip, convert FileList to array, credit: https://www.smashingmagazine.com/2018/01/drag-drop-file-uploader-vanilla-js/
           let formData = new FormData();
           ([...droppedFiles]).forEach((f,x) => {
-            formData.append('file'+(x), f);
+            if (x<20) {
+              formData.append('file'+(x), f);
+            }else{
+              this.notify("Too much files to upload", notifType.error);
+            }
           });
 
-          fetch('/api/upload', {
+          fetch('/api/upload/' + _room.id, {
             method:'POST',
             body: formData
           })
           .then(res => res.json())
           .then(res => {
-            Client.sendMessage(Client.MsgType["upload"], res.data.ids);
+            if (res.error){
+              this.notify(res.error, notifType.error);
+            }else{
+              Client.sendMessage(Client.MsgType["upload"], res.data.ids);
+            }
           })
           .catch(err => {
             this.notify(err, notifType.error);

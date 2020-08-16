@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -16,6 +17,7 @@ import (
 	"github.com/knadh/niltalk/internal/hub"
 	"github.com/knadh/niltalk/internal/upload"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -334,12 +336,49 @@ func readJSONReq(r *http.Request, o interface{}) error {
 }
 
 // handleUpload handles file uploads.
-func handleUpload(store *upload.Store, maxUploadSize int64) func(w http.ResponseWriter, r *http.Request) {
+func handleUpload(store *upload.Store, maxUploadSize int64, rlPeriod time.Duration, rlCount float64, rlBurst int) func(w http.ResponseWriter, r *http.Request) {
+
+	type roomLimiter struct {
+		limiter  *rate.Limiter
+		lastSeen time.Time
+	}
+	var mu sync.Mutex
+	roomLimiters := map[string]roomLimiter{}
+	go func() {
+		t := time.NewTicker(rlPeriod + (time.Minute * 10))
+		defer t.Stop()
+		for range t.C {
+			for k, r := range roomLimiters {
+				if r.lastSeen.After(time.Now()) {
+					delete(roomLimiters, k)
+				}
+			}
+		}
+	}()
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.ParseMultipartForm(maxUploadSize)
 
+		roomID := chi.URLParam(r, "roomID")
+		mu.Lock()
+		// no defer here becasue file upload can be slow, thus lock for too long
+		x, ok := roomLimiters[roomID]
+		if !ok {
+			x = roomLimiter{
+				limiter:  rate.NewLimiter(rate.Every(rlPeriod/time.Duration(rlCount)), rlBurst),
+				lastSeen: time.Now(),
+			}
+			roomLimiters[roomID] = x
+		}
+		mu.Unlock()
+		if !x.limiter.Allow() {
+			err := errors.New(http.StatusText(http.StatusTooManyRequests))
+			respondJSON(w, nil, err, http.StatusTooManyRequests)
+			return
+		}
+
 		var ids []string
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 20; i++ {
 			key := fmt.Sprintf("file%v", i)
 			file, handler, err := r.FormFile(key)
 			if err == http.ErrMissingFile {

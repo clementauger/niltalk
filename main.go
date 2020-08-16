@@ -13,13 +13,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/alecthomas/units"
 	"github.com/go-chi/chi"
-	"github.com/karrick/tparse/v2"
+	tparse "github.com/karrick/tparse/v2"
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/env"
@@ -271,6 +272,33 @@ func main() {
 		maxAge = x
 	}
 
+	var rlPeriod time.Duration = time.Minute
+	if uploadCfg.RateLimitPeriod != "" {
+		x, err := tparse.AbsoluteDuration(time.Now(), uploadCfg.RateLimitPeriod)
+		if err != nil {
+			logger.Fatalf("error unmarshalling 'upload.rate-limit-period' config: %v", err)
+		}
+		rlPeriod = x
+	}
+
+	rlCount := 20.0
+	if uploadCfg.RateLimitCount != "" {
+		x, err := strconv.ParseFloat(uploadCfg.RateLimitPeriod, 64)
+		if err != nil {
+			logger.Fatalf("error unmarshalling 'upload.rate-limit-count' config: %v", err)
+		}
+		rlCount = x
+	}
+
+	rlBurst := 1
+	if uploadCfg.RateLimitBurst != "" {
+		x, err := strconv.Atoi(uploadCfg.RateLimitBurst)
+		if err != nil {
+			logger.Fatalf("error unmarshalling 'upload.rate-limit-burst' config: %v", err)
+		}
+		rlBurst = x
+	}
+
 	// Register HTTP routes.
 	r := chi.NewRouter()
 	r.Get("/", wrap(handleIndex, app, 0))
@@ -280,7 +308,8 @@ func main() {
 	r.Post("/api/rooms/{roomID}/login", wrap(handleLogin, app, hasRoom))
 	r.Delete("/api/rooms/{roomID}/login", wrap(handleLogout, app, hasAuth|hasRoom))
 	r.Post("/api/rooms", wrap(handleCreateRoom, app, 0))
-	r.Post("/api/upload", handleUpload(uploadStore, maxUploadSize))
+
+	r.Post("/api/upload/{roomID}", handleUpload(uploadStore, maxUploadSize, rlPeriod, rlCount, rlBurst))
 	r.Get("/api/uploaded/{fileID}", handleUploaded(uploadStore, maxAge))
 
 	// Views.
