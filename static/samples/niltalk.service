@@ -1,0 +1,11 @@
+[Unit]
+Description=Niltalk service.
+
+[Service]
+Type=simple
+ExecStart=/path/to/niltalk
+User=User
+WorkingDirectory=/path/to/niltalk/wordkingdir
+
+[Install]
+WantedBy=multi-user.target

@@ -62,6 +62,7 @@ func loadConfig() {
 	f.StringSlice("config", []string{"config.toml"},
 		"Path to one or more TOML config files to load in order")
 	f.Bool("new-config", false, "generate sample config file")
+	f.Bool("new-unit", false, "generate systemd unit file")
 	f.Bool("version", false, "Show build version")
 	f.Bool("jit", defaultJIT, "build templates just in time")
 	f.Parse(os.Args[1:])
@@ -79,6 +80,16 @@ func loadConfig() {
 			os.Exit(1)
 		}
 		logger.Println("generated config.toml. Edit and run the app.")
+		os.Exit(0)
+	}
+
+	// Generate new unit.
+	if ok, _ := f.GetBool("new-unit"); ok {
+		if err := newUnitFile(); err != nil {
+			logger.Println(err)
+			os.Exit(1)
+		}
+		logger.Println("generated niltalk.service. Edit and install the service.")
 		os.Exit(0)
 	}
 
@@ -135,6 +146,22 @@ func newConfigFile() error {
 	}
 
 	return ioutil.WriteFile("config.toml", b, 0644)
+}
+
+func newUnitFile() error {
+	if _, err := os.Stat("niltalk.service"); !os.IsNotExist(err) {
+		return errors.New("niltalk.service exists. Remove it to generate a new one")
+	}
+
+	// Initialize the static file system into which all
+	// required static assets (.sql, .js files etc.) are loaded.
+	sampleBox := rice.MustFindBox("static/samples")
+	b, err := sampleBox.Bytes("niltalk.service")
+	if err != nil {
+		return fmt.Errorf("error reading sample unit (is binary stuffed?): %v", err)
+	}
+
+	return ioutil.WriteFile("niltalk.service", b, 0644)
 }
 
 func main() {
