@@ -43,12 +43,6 @@ type jsonResp struct {
 	Data  interface{} `json:"data"`
 }
 
-// tplWrap is the envelope for all HTML template executions.
-type tpl struct {
-	Config *hub.Config
-	Data   tplData
-}
-
 type tplData struct {
 	Title       string
 	Description string
@@ -229,7 +223,16 @@ func respondHTML(tplName string, data tplData, statusCode int, w http.ResponseWr
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := app.tpl.ExecuteTemplate(w, tplName, tpl{
+	tpl, err := app.getTpl()
+	if err != nil {
+		app.logger.Printf("error compiling template %s: %s", tplName, err)
+		w.Write([]byte("error compiling template"))
+		return
+	}
+	err = tpl.ExecuteTemplate(w, tplName, struct {
+		Config *hub.Config
+		Data   tplData
+	}{
 		Config: app.cfg,
 		Data:   data,
 	})

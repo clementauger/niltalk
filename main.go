@@ -12,12 +12,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	rice "github.com/GeertJohan/go.rice"
 	"github.com/alecthomas/units"
 	"github.com/go-chi/chi"
 	tparse "github.com/karrick/tparse/v2"
@@ -31,7 +31,6 @@ import (
 	"github.com/knadh/niltalk/store"
 	"github.com/knadh/niltalk/store/mem"
 	"github.com/knadh/niltalk/store/redis"
-	"github.com/knadh/stuffbin"
 	flag "github.com/spf13/pflag"
 )
 
@@ -48,7 +47,8 @@ type App struct {
 	hub    *hub.Hub
 	cfg    *hub.Config
 	tpl    *template.Template
-	fs     stuffbin.FileSystem
+	tplBox *rice.Box
+	jit    bool
 	logger *log.Logger
 }
 
@@ -62,8 +62,8 @@ func loadConfig() {
 	f.StringSlice("config", []string{"config.toml"},
 		"Path to one or more TOML config files to load in order")
 	f.Bool("new-config", false, "generate sample config file")
-	f.String("static-dir", "", "(optional) path to directory with static files")
 	f.Bool("version", false, "Show build version")
+	f.Bool("jit", defaultJIT, "build templates just in time")
 	f.Parse(os.Args[1:])
 
 	// Display version.
@@ -106,51 +106,6 @@ func loadConfig() {
 	ko.Load(posflag.Provider(f, ".", ko), nil)
 }
 
-// initFS initializes the stuffbin embedded static filesystem.
-func initFS(staticDir string) stuffbin.FileSystem {
-	// Get self executable path to initialise stuffed FS.
-	exe, err := os.Executable()
-	if err != nil {
-		log.Fatalf("error getting executable path: %v", err)
-	}
-
-	// Read stuffed data from self.
-	fs, err := stuffbin.UnStuff(exe)
-	if err != nil {
-		// Binary is unstuffed or is running in dev mode.
-		// Can halt here or fall back to the local filesystem.
-		if err == stuffbin.ErrNoID {
-			// First argument is to the root to mount the files in the FileSystem
-			// and the rest of the arguments are paths to embed.
-			fs, err = stuffbin.NewLocalFS("./",
-				"./static/templates",
-				"./static/static:/static",
-				"config.toml.sample")
-			if err != nil {
-				log.Fatalf("error falling back to local filesystem: %v", err)
-			}
-		} else {
-			log.Fatalf("error reading stuffed binary: %v", err)
-		}
-	}
-
-	// Optional static directory to override files.
-	if staticDir != "" {
-		logger.Printf("loading static files from: %v", staticDir)
-		fStatic, err := stuffbin.NewLocalFS("/",
-			filepath.Join(staticDir, "/templates")+":/static/templates",
-			filepath.Join(staticDir, "/static")+":/static",
-		)
-		if err != nil {
-			logger.Fatalf("failed reading static directory: %s: %v", staticDir, err)
-		}
-		if err := fs.Merge(fStatic); err != nil {
-			logger.Fatalf("error merging static directory: %s: %v", staticDir, err)
-		}
-	}
-	return fs
-}
-
 // Catch OS interrupts and respond accordingly.
 // This is not fool proof as http keeps listening while
 // existing rooms are shut down.
@@ -173,8 +128,8 @@ func newConfigFile() error {
 
 	// Initialize the static file system into which all
 	// required static assets (.sql, .js files etc.) are loaded.
-	fs := initFS("")
-	b, err := fs.Read("config.toml.sample")
+	sampleBox := rice.MustFindBox("static/samples")
+	b, err := sampleBox.Bytes("config.toml")
 	if err != nil {
 		return fmt.Errorf("error reading sample config (is binary stuffed?): %v", err)
 	}
@@ -186,10 +141,15 @@ func main() {
 	// Load configuration from files.
 	loadConfig()
 
+	// Load file system boxes
+	rConf := rice.Config{LocateOrder: []rice.LocateMethod{rice.LocateFS, rice.LocateAppended}}
+	tplBox := rConf.MustFindBox("static/templates")
+	assetBox := rConf.MustFindBox("static/static")
+
 	// Initialize global app context.
 	app := &App{
 		logger: logger,
-		fs:     initFS(ko.String("static-dir")),
+		tplBox: tplBox,
 	}
 	if err := ko.Unmarshal("app", &app.cfg); err != nil {
 		logger.Fatalf("error unmarshalling 'app' config: %v", err)
@@ -232,10 +192,11 @@ func main() {
 	app.hub = hub.NewHub(app.cfg, store, logger)
 
 	// Compile static templates.
-	tpl, err := stuffbin.ParseTemplatesGlob(nil, app.fs, "/static/templates/*.html")
+	tpl, err := app.buildTpl()
 	if err != nil {
 		logger.Fatalf("error compiling templates: %v", err)
 	}
+	app.jit = ko.Bool("jit")
 	app.tpl = tpl
 
 	// Setup the file upload store.
@@ -314,9 +275,10 @@ func main() {
 
 	// Views.
 	r.Get("/r/{roomID}", wrap(handleRoomPage, app, hasAuth|hasRoom))
-	r.Get("/static/*", func(w http.ResponseWriter, r *http.Request) {
-		app.fs.FileServer().ServeHTTP(w, r)
-	})
+
+	// Assets.
+	fs := http.StripPrefix("/static/", http.FileServer(assetBox.HTTPBox()))
+	r.Get("/static/*", fs.ServeHTTP)
 
 	// Start the app.
 	var srv interface {
@@ -347,4 +309,30 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Fatalf("couldn't start server: %v", err)
 	}
+}
+
+func (a *App) getTpl() (*template.Template, error) {
+	if a.jit {
+		return a.buildTpl()
+	}
+	return a.tpl, nil
+}
+
+func (a *App) buildTpl() (*template.Template, error) {
+	tpl := template.New("")
+	err := a.tplBox.Walk("/", func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		s, err := a.tplBox.String(path)
+		if err != nil {
+			return err
+		}
+		tpl, err = tpl.Parse(s)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return tpl, err
 }
