@@ -29,6 +29,7 @@ import (
 	"github.com/knadh/niltalk/internal/hub"
 	"github.com/knadh/niltalk/internal/upload"
 	"github.com/knadh/niltalk/store"
+	"github.com/knadh/niltalk/store/fs"
 	"github.com/knadh/niltalk/store/mem"
 	"github.com/knadh/niltalk/store/redis"
 	flag "github.com/spf13/pflag"
@@ -213,8 +214,20 @@ func main() {
 		}
 		store = s
 
+	} else if app.cfg.Storage == "fs" {
+		var storeCfg fs.Config
+		if err := ko.Unmarshal("store", &storeCfg); err != nil {
+			logger.Fatalf("error unmarshalling 'store' config: %v", err)
+		}
+
+		s, err := fs.New(storeCfg, logger)
+		if err != nil {
+			log.Fatalf("error initializing store: %v", err)
+		}
+		store = s
+
 	} else {
-		logger.Fatal("app.storage must be one of redis or memory")
+		logger.Fatal("app.storage must be one of redis|memory|fs")
 	}
 	app.hub = hub.NewHub(app.cfg, store, logger)
 
@@ -304,8 +317,8 @@ func main() {
 	r.Get("/r/{roomID}", wrap(handleRoomPage, app, hasAuth|hasRoom))
 
 	// Assets.
-	fs := http.StripPrefix("/static/", http.FileServer(assetBox.HTTPBox()))
-	r.Get("/static/*", fs.ServeHTTP)
+	assets := http.StripPrefix("/static/", http.FileServer(assetBox.HTTPBox()))
+	r.Get("/static/*", assets.ServeHTTP)
 
 	// Start the app.
 	var srv interface {
