@@ -271,7 +271,7 @@ func main() {
 
 	rlCount := 20.0
 	if uploadCfg.RateLimitCount != "" {
-		x, err := strconv.ParseFloat(uploadCfg.RateLimitPeriod, 64)
+		x, err := strconv.ParseFloat(uploadCfg.RateLimitCount, 64)
 		if err != nil {
 			logger.Fatalf("error unmarshalling 'upload.rate-limit-count' config: %v", err)
 		}
