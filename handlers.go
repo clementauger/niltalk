@@ -342,20 +342,23 @@ func readJSONReq(r *http.Request, o interface{}) error {
 func handleUpload(store *upload.Store, maxUploadSize int64, rlPeriod time.Duration, rlCount float64, rlBurst int) func(w http.ResponseWriter, r *http.Request) {
 
 	type roomLimiter struct {
-		limiter  *rate.Limiter
-		lastSeen time.Time
+		limiter *rate.Limiter
+		expire  time.Time
 	}
 	var mu sync.Mutex
 	roomLimiters := map[string]roomLimiter{}
 	go func() {
-		t := time.NewTicker(rlPeriod + (time.Minute * 10))
+		t := time.NewTicker(rlPeriod + (time.Minute))
 		defer t.Stop()
 		for range t.C {
+			now := time.Now()
+			mu.Lock()
 			for k, r := range roomLimiters {
-				if r.lastSeen.After(time.Now()) {
+				if r.expire.Before(now) {
 					delete(roomLimiters, k)
 				}
 			}
+			mu.Unlock()
 		}
 	}()
 
@@ -368,11 +371,13 @@ func handleUpload(store *upload.Store, maxUploadSize int64, rlPeriod time.Durati
 		x, ok := roomLimiters[roomID]
 		if !ok {
 			x = roomLimiter{
-				limiter:  rate.NewLimiter(rate.Every(rlPeriod/time.Duration(rlCount)), rlBurst),
-				lastSeen: time.Now(),
+				limiter: rate.NewLimiter(rate.Every(rlPeriod/time.Duration(rlCount)), rlBurst),
+				expire:  time.Now().Add(time.Minute * 10),
 			}
 			roomLimiters[roomID] = x
 		}
+		x.expire = time.Now().Add(time.Minute * 10)
+		roomLimiters[roomID] = x
 		mu.Unlock()
 		if !x.limiter.Allow() {
 			err := errors.New(http.StatusText(http.StatusTooManyRequests))
