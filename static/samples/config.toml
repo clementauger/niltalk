@@ -59,9 +59,9 @@ prefix_session = "NIL:SESS:ROOM:%s"
 
 # File upload configuration.
 [upload]
-max-memory=32Mb
-max-upload-size=2Mb
-max-age=1year
-rate-limit-count=10
-rate-limit-period=1minute
-rate-limit-burst=1
+max-memory="32MB"
+max-upload-size="2MB"
+max-age="1year"
+rate-limit-count="10"
+rate-limit-period="1minute"
+rate-limit-burst="1"
