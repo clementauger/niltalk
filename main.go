@@ -64,6 +64,7 @@ func loadConfig() {
 		"Path to one or more TOML config files to load in order")
 	f.Bool("new-config", false, "generate sample config file")
 	f.Bool("new-unit", false, "generate systemd unit file")
+	f.Bool("onion", false, "Show the onion URL")
 	f.Bool("version", false, "Show build version")
 	f.Bool("jit", defaultJIT, "build templates just in time")
 	f.Parse(os.Args[1:])
@@ -229,6 +230,16 @@ func main() {
 	} else {
 		logger.Fatal("app.storage must be one of redis|memory|fs")
 	}
+
+	if ko.Bool("onion") {
+		pk, err := getOrCreatePK(store)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		fmt.Printf("http://%v.onion\n", onionAddr(pk))
+		os.Exit(0)
+	}
+
 	app.hub = hub.NewHub(app.cfg, store, logger)
 
 	// Compile static templates.
