@@ -1,7 +1,6 @@
 package mem
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -9,9 +8,7 @@ import (
 )
 
 // Config represents the InMemory store config structure.
-type Config struct {
-	PrefixRoom string `koanf:"prefix_room"`
-}
+type Config struct{}
 
 // InMemory represents the in-memory implementation of the Store interface.
 type InMemory struct {
@@ -65,8 +62,7 @@ func (m *InMemory) AddRoom(r store.Room, ttl time.Duration) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, r.ID)
-	m.rooms[key] = &room{
+	m.rooms[r.ID] = &room{
 		Room:     r,
 		Expire:   r.CreatedAt.Add(ttl),
 		Sessions: map[string]string{},
@@ -80,14 +76,13 @@ func (m *InMemory) ExtendRoomTTL(id string, ttl time.Duration) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, id)
-	room, ok := m.rooms[key]
+	room, ok := m.rooms[id]
 	if !ok {
 		return store.ErrRoomNotFound
 	}
 
 	room.Expire = room.Expire.Add(ttl)
-	m.rooms[key] = room
+	m.rooms[id] = room
 	return nil
 }
 
@@ -96,8 +91,7 @@ func (m *InMemory) GetRoom(id string) (store.Room, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, id)
-	out, ok := m.rooms[key]
+	out, ok := m.rooms[id]
 
 	if !ok {
 		return out.Room, store.ErrRoomNotFound
@@ -110,8 +104,7 @@ func (m *InMemory) RoomExists(id string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, id)
-	_, ok := m.rooms[key]
+	_, ok := m.rooms[id]
 
 	return ok, nil
 }
@@ -121,8 +114,7 @@ func (m *InMemory) RemoveRoom(id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, id)
-	delete(m.rooms, key)
+	delete(m.rooms, id)
 
 	return nil
 }
@@ -132,15 +124,14 @@ func (m *InMemory) AddSession(sessID, handle, roomID string, ttl time.Duration) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, roomID)
-	room, ok := m.rooms[key]
+	room, ok := m.rooms[roomID]
 
 	if !ok {
 		return store.ErrRoomNotFound
 	}
 
 	room.Sessions[sessID] = handle
-	m.rooms[key] = room
+	m.rooms[roomID] = room
 
 	return nil
 }
@@ -150,8 +141,7 @@ func (m *InMemory) GetSession(sessID, roomID string) (store.Sess, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, roomID)
-	room, ok := m.rooms[key]
+	room, ok := m.rooms[roomID]
 
 	if !ok {
 		return store.Sess{}, store.ErrRoomNotFound
@@ -174,15 +164,14 @@ func (m *InMemory) RemoveSession(sessID, roomID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, roomID)
-	room, ok := m.rooms[key]
+	room, ok := m.rooms[roomID]
 
 	if !ok {
 		return store.ErrRoomNotFound
 	}
 
 	delete(room.Sessions, sessID)
-	m.rooms[key] = room
+	m.rooms[roomID] = room
 
 	return nil
 }
@@ -192,8 +181,7 @@ func (m *InMemory) ClearSessions(roomID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := fmt.Sprintf(m.cfg.PrefixRoom, roomID)
-	room, ok := m.rooms[key]
+	room, ok := m.rooms[roomID]
 
 	if !ok {
 		return store.ErrRoomNotFound
@@ -201,7 +189,7 @@ func (m *InMemory) ClearSessions(roomID string) error {
 
 	room.Sessions = map[string]string{}
 
-	m.rooms[key] = room
+	m.rooms[roomID] = room
 
 	return nil
 }
