@@ -169,7 +169,7 @@ func main() {
 	loadConfig()
 
 	// Load file system boxes
-	rConf := rice.Config{LocateOrder: []rice.LocateMethod{rice.LocateFS, rice.LocateAppended}}
+	rConf := rice.Config{LocateOrder: []rice.LocateMethod{rice.LocateWorkingDirectory, rice.LocateAppended}}
 	tplBox := rConf.MustFindBox("static/templates")
 	assetBox := rConf.MustFindBox("static/static")
 
