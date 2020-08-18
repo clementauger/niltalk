@@ -9,43 +9,45 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/clementauger/tor-prebuilt/embedded"
 	"github.com/cretz/bine/tor"
 	"github.com/cretz/bine/torutil"
 	tued25519 "github.com/cretz/bine/torutil/ed25519"
+	"github.com/knadh/niltalk/store"
 )
 
-func getOrCreatePK(fpath string) (ed25519.PrivateKey, error) {
-	var privateKey ed25519.PrivateKey
-	if _, err := os.Stat(fpath); os.IsNotExist(err) {
+func getOrCreatePK(store store.Store) (privateKey ed25519.PrivateKey, err error) {
+	key := "onionkey"
+	d, err := store.Get(key)
+	if len(d) == 0 || err != nil {
 		_, privateKey, err = ed25519.GenerateKey(rand.Reader)
 		if err != nil {
 			return nil, err
 		}
-		x509Encoded, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		var x509Encoded []byte
+		x509Encoded, err = x509.MarshalPKCS8PrivateKey(privateKey)
 		if err != nil {
 			return nil, err
 		}
 		pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "ED25519 PRIVATE KEY", Bytes: x509Encoded})
-		ioutil.WriteFile(fpath, pemEncoded, os.ModePerm)
+		err = store.Set(key, pemEncoded)
 	} else {
-		d, _ := ioutil.ReadFile(fpath)
 		block, _ := pem.Decode(d)
 		x509Encoded := block.Bytes
-		tPk, err := x509.ParsePKCS8PrivateKey(x509Encoded)
+		var tPk interface{}
+		tPk, err = x509.ParsePKCS8PrivateKey(x509Encoded)
 		if err != nil {
 			return nil, err
 		}
 		if x, ok := tPk.(ed25519.PrivateKey); ok {
 			privateKey = x
 		} else {
-			return nil, fmt.Errorf("invalid key type %T wanted ed25519.PrivateKey", tPk)
+			err = fmt.Errorf("invalid key type %T wanted ed25519.PrivateKey", tPk)
 		}
 	}
-	return privateKey, nil
+	return privateKey, err
 }
 
 type torServer struct {

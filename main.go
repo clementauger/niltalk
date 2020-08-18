@@ -313,8 +313,7 @@ func main() {
 	}
 
 	if appAddress := ko.String("app.address"); appAddress == "tor" {
-		pkPath := ko.String("app.privatekey")
-		pk, err := getOrCreatePK(pkPath)
+		pk, err := getOrCreatePK(store)
 		if err != nil {
 			logger.Fatalf("could not create the private key file: %v", err)
 		}

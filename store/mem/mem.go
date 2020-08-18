@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ type Config struct{}
 type InMemory struct {
 	cfg   *Config
 	rooms map[string]*room
+	data  map[string][]byte
 	mu    sync.Mutex
 }
 
@@ -28,6 +30,7 @@ func New(cfg Config) (*InMemory, error) {
 	store := &InMemory{
 		cfg:   &cfg,
 		rooms: map[string]*room{},
+		data:  map[string][]byte{},
 	}
 	go store.watch()
 	return store, nil
@@ -191,5 +194,25 @@ func (m *InMemory) ClearSessions(roomID string) error {
 
 	m.rooms[roomID] = room
 
+	return nil
+}
+
+// Get value from a key.
+func (m *InMemory) Get(key string) ([]byte, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.data[key]
+	if !ok {
+		return nil, fmt.Errorf("key %q not found", key)
+	}
+	return d, nil
+}
+
+// Set a value.
+func (m *InMemory) Set(key string, data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.data[key] = make([]byte, len(data), len(data))
+	copy(m.data[key], data)
 	return nil
 }
