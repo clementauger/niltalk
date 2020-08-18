@@ -314,15 +314,15 @@ func main() {
 	// Register HTTP routes.
 	r := chi.NewRouter()
 	r.Get("/", wrap(handleIndex, app, 0))
-	r.Get("/ws/{roomID}", wrap(handleWS, app, hasAuth|hasRoom))
+	r.Get("/r/{roomID}/ws", wrap(handleWS, app, hasAuth|hasRoom))
 
 	// API.
-	r.Post("/api/rooms/{roomID}/login", wrap(handleLogin, app, hasRoom))
-	r.Delete("/api/rooms/{roomID}/login", wrap(handleLogout, app, hasAuth|hasRoom))
 	r.Post("/api/rooms", wrap(handleCreateRoom, app, 0))
+	r.Post("/r/{roomID}/login", wrap(handleLogin, app, hasRoom))
+	r.Delete("/r/{roomID}/login", wrap(handleLogout, app, hasAuth|hasRoom))
 
-	r.Post("/api/upload/{roomID}", handleUpload(uploadStore, maxUploadSize, rlPeriod, rlCount, rlBurst))
-	r.Get("/api/uploaded/{fileID}", handleUploaded(uploadStore, maxAge))
+	r.Post("/r/{roomID}/upload", handleUpload(uploadStore, maxUploadSize, rlPeriod, rlCount, rlBurst))
+	r.Get("/r/{roomID}/uploaded/{fileID}", handleUploaded(uploadStore, maxAge))
 
 	// Views.
 	r.Get("/r/{roomID}", wrap(handleRoomPage, app, hasAuth|hasRoom))

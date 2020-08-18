@@ -33,7 +33,7 @@ var Client = new function () {
 	// Initialize and connect the websocket.
 	this.init = function (roomID) {
 		wsURL = document.location.protocol.replace(/http(s?):/, "ws$1:") +
-			document.location.host + "/ws/" + roomID;
+			document.location.host + "/r/" + roomID + "/ws";
 	};
 
 	// Peer identification info.

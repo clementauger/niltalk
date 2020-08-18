@@ -61,8 +61,8 @@
 							<span class="timestamp" :title="m.timestamp">{( formatDate(m.timestamp) )}</span>
 						</div>
 						<div class="content">
-							<a v-bind:href="'{{ .Config.RootURL }}/api/uploaded/' + m.message" target="_blank">
-								<img v-bind:src="'{{ .Config.RootURL }}/api/uploaded/' + m.message" class="upload" />
+							<a v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + m.message" target="_blank">
+								<img v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + m.message" class="upload" />
 							</a>
 						</div>
 					</div>

@@ -148,7 +148,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the session cookie.
-	ck := &http.Cookie{Name: app.cfg.SessionCookie, Value: sessID, Path: "/"}
+	ck := &http.Cookie{Name: app.cfg.SessionCookie, Value: sessID, Path: fmt.Sprintf("/r/%v", room.ID)}
 	http.SetCookie(w, ck)
 	respondJSON(w, true, nil, http.StatusOK)
 }
@@ -173,7 +173,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete the session cookie.
-	ck := &http.Cookie{Name: app.cfg.SessionCookie, Value: "", MaxAge: -1, Path: "/"}
+	ck := &http.Cookie{Name: app.cfg.SessionCookie, Value: "", MaxAge: -1, Path: fmt.Sprintf("/r/%v", room.ID)}
 	http.SetCookie(w, ck)
 	respondJSON(w, true, nil, http.StatusOK)
 }

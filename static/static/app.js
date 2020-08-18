@@ -109,7 +109,7 @@ var app = new Vue({
             const handle = this.handle.replace(/[^a-z0-9_\-\.@]/ig, "");
 
             this.notify("Logging in", notifType.notice);
-            fetch("/api/rooms/" + _room.id + "/login", {
+            fetch("/r/" + _room.id + "/login", {
                 method: "post",
                 body: JSON.stringify({ handle: handle, password: this.password }),
                 headers: { "Content-Type": "application/json; charset=utf-8" }
@@ -173,7 +173,7 @@ var app = new Vue({
             if (!confirm("Logout?")) {
                 return;
             }
-            fetch("/api/rooms/" + _room.id + "/login", {
+            fetch("/r/" + _room.id + "/login", {
                 method: "delete",
                 headers: { "Content-Type": "application/json; charset=utf-8" }
             })
@@ -473,7 +473,7 @@ var app = new Vue({
             }
           });
 
-          fetch('/api/upload/' + _room.id, {
+          fetch("/r/" + _room.id + "/upload", {
             method:'POST',
             body: formData
           })
