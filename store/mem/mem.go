@@ -74,6 +74,20 @@ func (m *InMemory) AddRoom(r store.Room, ttl time.Duration) error {
 	return nil
 }
 
+// AddPredefinedRoom adds a room to the store.
+func (m *InMemory) AddPredefinedRoom(r store.Room) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	key := r.ID
+	m.rooms[key] = &room{
+		Room:     r,
+		Sessions: map[string]string{},
+	}
+
+	return nil
+}
+
 // ExtendRoomTTL extends a room's TTL.
 func (m *InMemory) ExtendRoomTTL(id string, ttl time.Duration) error {
 	m.mu.Lock()
