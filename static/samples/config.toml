@@ -44,6 +44,12 @@ session_cookie = "niltoken"
 # Storage kind, one of redis|memory|fs.
 storage = "redis"
 
+[rooms]
+[rooms.local]
+id="local"
+name="local"
+password=""
+
 # Redis cache server.
 # Rooms are cached until they expires. Messages are not cached.
 [store]
