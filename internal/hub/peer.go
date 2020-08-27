@@ -127,6 +127,9 @@ func (p *Peer) processMessage(b []byte) {
 			// TODO: Respond
 			return
 		}
+		if p.room.OnPeerMessage != nil {
+			go p.room.OnPeerMessage(msg, p)
+		}
 		p.room.Broadcast(p.room.makeMessagePayload(msg, p, m.Type), true)
 
 	case TypeUpload:

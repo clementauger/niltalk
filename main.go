@@ -30,6 +30,7 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/niltalk/internal/hub"
+	"github.com/knadh/niltalk/internal/notify"
 	"github.com/knadh/niltalk/internal/upload"
 	"github.com/knadh/niltalk/store"
 	"github.com/knadh/niltalk/store/fs"
@@ -255,6 +256,17 @@ func main() {
 		if err != nil {
 			logger.Printf("error creating a predefined room %q: %v", room.Name, err)
 			continue
+		}
+		if room.GrowlEnabler != "" {
+			r.OnPeerMessage = notify.Notifier{
+				BaseURL: app.cfg.RootURL,
+				RoomID:  r.ID,
+				Enabler: room.GrowlEnabler,
+				Title:   room.GrowlTitle,
+				Message: room.GrowlMessage,
+				Icon:    room.GrowlIcon,
+				Logger:  app.logger,
+			}.OnPeerMessage
 		}
 		_, err = app.hub.ActivateRoom(r.ID)
 		if err != nil {

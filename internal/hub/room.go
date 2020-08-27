@@ -50,6 +50,9 @@ type Room struct {
 	// Broadcast channel for messages.
 	broadcastQ chan []byte
 
+	// OnPeerMessage is an async callback fired when a peer triggers a TypeMessage request.
+	OnPeerMessage func(msg string, p *Peer)
+
 	// Peer related requests.
 	peerQ chan peerReq
 
