@@ -257,16 +257,13 @@ func main() {
 			logger.Printf("error creating a predefined room %q: %v", room.Name, err)
 			continue
 		}
-		if room.GrowlEnabler != "" {
-			r.OnPeerMessage = notify.Notifier{
-				BaseURL: app.cfg.RootURL,
-				RoomID:  r.ID,
-				Enabler: room.GrowlEnabler,
-				Title:   room.GrowlTitle,
-				Message: room.GrowlMessage,
-				Icon:    room.GrowlIcon,
-				Logger:  app.logger,
-			}.OnPeerMessage
+		if room.Growl.Enabler != "" {
+			n := notify.New(room.Growl, app.cfg.RootURL, r.ID, app.logger)
+			if err = n.Init(); err != nil {
+				logger.Printf("error setting up growl notifications for the predefined room %q: %v", room.Name, err)
+				continue
+			}
+			r.OnPeerMessage = n.OnPeerMessage
 		}
 		_, err = app.hub.ActivateRoom(r.ID)
 		if err != nil {
