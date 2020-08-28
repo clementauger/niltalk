@@ -117,15 +117,6 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, errors.New("error parsing JSON request"), http.StatusBadRequest)
 		return
 	}
-	if req.Handle == "" {
-		h, err := hub.GenerateGUID(8)
-		if err != nil {
-			app.logger.Printf("error generating uniq handle: %v", err)
-			respondJSON(w, nil, errors.New("error generating uniq handle"), http.StatusInternalServerError)
-			return
-		}
-		req.Handle = h
-	}
 
 	if req.Handle == "" {
 		h, err := hub.GenerateGUID(8)
