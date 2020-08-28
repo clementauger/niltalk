@@ -128,7 +128,7 @@ func (p *Peer) processMessage(b []byte) {
 			return
 		}
 		if p.room.OnPeerMessage != nil {
-			go p.room.OnPeerMessage(msg, p)
+			go p.room.OnPeerMessage(msg, p.Handle)
 		}
 		p.room.Broadcast(p.room.makeMessagePayload(msg, p, m.Type), true)
 

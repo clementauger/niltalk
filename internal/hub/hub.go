@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knadh/niltalk/internal/notify"
 	"github.com/knadh/niltalk/store"
 )
 
@@ -53,13 +54,10 @@ type Config struct {
 
 // PredefinedRoom are static rooms declared in the configuration file.
 type PredefinedRoom struct {
-	ID           string `koanf:"id"`
-	Name         string `koanf:"name"`
-	Password     string `koanf:"password"`
-	GrowlIcon    string `koanf:"growl-icon"`
-	GrowlEnabler string `koanf:"growl-enabler"`
-	GrowlMessage string `koanf:"growl-message"`
-	GrowlTitle   string `koanf:"growl-title"`
+	ID       string         `koanf:"id"`
+	Name     string         `koanf:"name"`
+	Password string         `koanf:"password"`
+	Growl    notify.Options `koanf:"growl"`
 }
 
 // Hub acts as the controller and container for all chat rooms.

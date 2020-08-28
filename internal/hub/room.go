@@ -38,9 +38,8 @@ type Room struct {
 	Name       string
 	Password   []byte
 	Predefined bool
-
-	hub *Hub
-	mut *sync.RWMutex
+	hub        *Hub
+	mut        *sync.RWMutex
 
 	lastActivity time.Time
 
@@ -51,7 +50,7 @@ type Room struct {
 	broadcastQ chan []byte
 
 	// OnPeerMessage is an async callback fired when a peer triggers a TypeMessage request.
-	OnPeerMessage func(msg string, p *Peer)
+	OnPeerMessage func(msg, handle string)
 
 	// Peer related requests.
 	peerQ chan peerReq

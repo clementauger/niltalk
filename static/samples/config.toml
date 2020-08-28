@@ -49,9 +49,11 @@ storage = "redis"
 id="local"
 name="local"
 password=""
-growl-enabler="@dring"
-growl-message="{{.UserName}} is calling you. Open {{.URL}}"
-growl-title="Niltalk notification"
+[rooms.local.growl]
+enabler="@hello"
+message="{{.UserName}} is calling you. Open {{.URL}}"
+title="Niltalk notification"
+sound="beep.mp3"
 
 # Redis cache server.
 # Rooms are cached until they expires. Messages are not cached.
