@@ -8,6 +8,7 @@ require (
 	github.com/clementauger/tor-prebuilt v0.0.0-20200417203124-4a32b6da469e
 	github.com/cretz/bine v0.1.0
 	github.com/daaku/go.zipexe v1.0.1 // indirect
+	github.com/gen2brain/beeep v0.0.0-20200526185328-e9c15c258e28
 	github.com/go-chi/chi v4.1.0+incompatible
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gorilla/websocket v1.4.2
