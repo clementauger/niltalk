@@ -236,7 +236,7 @@ func main() {
 			logger.Fatal(err)
 		}
 		fmt.Printf("http://%v.onion\n", onionAddr(pk))
-		os.Exit(0)
+		return
 	}
 
 	app.hub = hub.NewHub(app.cfg, store, logger)
