@@ -18,6 +18,7 @@ import (
 	"time"
 
 	rice "github.com/GeertJohan/go.rice"
+	"github.com/fsnotify/fsnotify"
 	"github.com/go-chi/chi"
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/toml"
@@ -116,15 +117,6 @@ func loadConfig() {
 
 	// Merge command line flags into config.
 	ko.Load(posflag.Provider(f, ".", ko), nil)
-}
-
-// Catch OS interrupts and respond accordingly.
-// This is not fool proof as http keeps listening while
-// existing rooms are shut down.
-func catchInterrupts() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	logger.Printf("shutting down: %v", <-c)
 }
 
 func newConfigFile() error {
@@ -342,7 +334,52 @@ func main() {
 		}
 	}()
 
-	catchInterrupts()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	var cFiles []string
+	ko.Unmarshal("config", &cFiles)
+	select {
+	case <-fileWatcher(cFiles...):
+	case sig := <-c:
+		logger.Printf("shutting down: %v", sig)
+	}
+}
+
+func fileWatcher(files ...string) chan struct{} {
+	out := make(chan struct{})
+	if len(files) > 0 {
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			logger.Printf("failed to initialize configuration file watcher: %v", err)
+			return out
+		}
+		for _, f := range files {
+			err = watcher.Add(f)
+			if err != nil {
+				logger.Printf("failed to add configuration file %q watcher: %v", f, err)
+			}
+		}
+		go func() {
+			for {
+				select {
+				case event, ok := <-watcher.Events:
+					if !ok {
+						return
+					}
+					if event.Op&fsnotify.Write == fsnotify.Write {
+						logger.Printf("configuration file %q changed", event.Name)
+						out <- struct{}{}
+					}
+				case err, ok := <-watcher.Errors:
+					if !ok {
+						return
+					}
+					logger.Printf("watcher error: %v", err)
+				}
+			}
+		}()
+	}
+	return out
 }
 
 func (a *App) getTpl() (*template.Template, error) {
