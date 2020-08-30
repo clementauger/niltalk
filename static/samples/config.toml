@@ -47,15 +47,21 @@ session_cookie = "niltoken"
 storage = "redis"
 
 [rooms]
-[rooms.local]
-id="local"
-name="local"
-password=""
-[rooms.local.growl]
-enabler="@hello"
-message="{{.UserName}} is calling you. Open {{.URL}}"
-title="Niltalk notification"
-sound="beep.mp3"
+  [rooms.local]
+  id="local"
+  name="local"
+  password=""
+    [rooms.local.growl]
+    message="{{.UserName}} is calling you. Open {{.URL}}"
+    title="Niltalk notification"
+    sound="beep.mp3"
+      [[rooms.local.users]]
+      name="me1"
+      password="azerty"
+      growl=true
+      [[rooms.local.users]]
+      name="me2"
+      password="azerty"
 
 # Redis cache server.
 # Rooms are cached until they expires. Messages are not cached.
