@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/knadh/niltalk/internal/hub"
 	"github.com/knadh/niltalk/internal/upload"
-	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
 )
 
@@ -129,23 +128,12 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		req.Handle = h
 	}
 
-	// Validate password.
-	if err := bcrypt.CompareHashAndPassword(room.Password, []byte(req.Password)); err != nil {
+	sessID, err := room.Login(req.Password, req.Handle, req.UserPwd, app.cfg.RoomAge)
+	if err == hub.ErrInvalidRoomPassword || err == hub.ErrInvalidUserPassword {
 		respondJSON(w, nil, errors.New("incorrect password"), http.StatusForbidden)
 		return
-	}
-
-	// Register a new session for the peer in the DB.
-	sessID, err := hub.GenerateGUID(32)
-	if err != nil {
-		app.logger.Printf("error generating session ID: %v", err)
-		respondJSON(w, nil, errors.New("error generating session ID"), http.StatusInternalServerError)
-		return
-	}
-
-	if err := app.hub.Store.AddSession(sessID, req.Handle, room.ID, app.cfg.RoomAge); err != nil {
-		app.logger.Printf("error creating session: %v", err)
-		respondJSON(w, nil, errors.New("error creating session"), http.StatusInternalServerError)
+	} else if err != nil {
+		respondJSON(w, nil, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -276,16 +264,8 @@ func handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hash the password.
-	pwdHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 8)
-	if err != nil {
-		app.logger.Printf("error hashing password: %v", err)
-		respondJSON(w, "Error hashing password", nil, http.StatusInternalServerError)
-		return
-	}
-
 	// Create and activate the new room.
-	room, err := app.hub.AddRoom(req.Name, pwdHash)
+	room, err := app.hub.AddRoom(req.Name, req.Password)
 	if err != nil {
 		respondJSON(w, nil, err, http.StatusInternalServerError)
 		return

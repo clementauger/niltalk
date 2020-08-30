@@ -32,7 +32,6 @@ import (
 	"github.com/knadh/niltalk/store/mem"
 	"github.com/knadh/niltalk/store/redis"
 	flag "github.com/spf13/pflag"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -242,12 +241,7 @@ func main() {
 	}
 	// setup predefined rooms
 	for _, room := range app.cfg.Rooms {
-		pwdHash, err := bcrypt.GenerateFromPassword([]byte(room.Password), 8)
-		if err != nil {
-			logger.Printf("error hashing password: %v", err)
-			return
-		}
-		r, err := app.hub.AddPredefinedRoom(room.ID, room.Name, pwdHash)
+		r, err := app.hub.AddPredefinedRoom(room.ID, room.Name, room.Password)
 		if err != nil {
 			logger.Printf("error creating a predefined room %q: %v", room.Name, err)
 			continue

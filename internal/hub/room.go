@@ -2,10 +2,13 @@ package hub
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type payloadMsgWrap struct {
@@ -83,6 +86,42 @@ func NewRoom(id, name string, password []byte, h *Hub, predefined bool) *Room {
 		payloadCache: make([][]byte, 0, h.cfg.MaxCachedMessages),
 	}
 }
+
+// Login an user into the room. It chekcs for room password,
+// user password is the handle belongs to a predefined user.
+// Generates a session ID and stores it into the store.
+func (r *Room) Login(roomPwd, handle, handlePwd string, roomAge time.Duration) (string, error) {
+
+	if err := bcrypt.CompareHashAndPassword(r.Password, []byte(roomPwd)); err != nil {
+		return "", ErrInvalidRoomPassword
+	}
+
+	for _, u := range r.PredefinedUsers {
+		if u.Name == handle && u.Password != handlePwd {
+			return "", ErrInvalidUserPassword
+		}
+	}
+
+	// Register a new session for the peer in the DB.
+	sessID, err := GenerateGUID(32)
+	if err != nil {
+		r.hub.log.Printf("error generating session ID: %v", err)
+		return "", errors.New("error generating session ID")
+	}
+
+	if err := r.hub.Store.AddSession(sessID, handle, r.ID, roomAge); err != nil {
+		r.hub.log.Printf("error creating session: %v", err)
+		return "", errors.New("error storing session")
+	}
+
+	return sessID, nil
+}
+
+// Predefined common errors.
+var (
+	ErrInvalidRoomPassword = fmt.Errorf("invalid room password")
+	ErrInvalidUserPassword = fmt.Errorf("invalid user password")
+)
 
 // HandleGrowlNotifications sends growl notification if target user is offline.
 func (r *Room) HandleGrowlNotifications(fromPeer, msg string) {

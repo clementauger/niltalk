@@ -9,6 +9,7 @@ import (
 
 	"github.com/knadh/niltalk/internal/notify"
 	"github.com/knadh/niltalk/store"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Types of messages sent to peers.
@@ -94,7 +95,15 @@ func NewHub(cfg *Config, store store.Store, l *log.Logger) *Hub {
 
 // AddRoom creates a new room in the store, adds it to the hub, and
 // returns the room (which has to be .Run() on a goroutine then).
-func (h *Hub) AddRoom(name string, password []byte) (*Room, error) {
+func (h *Hub) AddRoom(name, password string) (*Room, error) {
+
+	// Hash the password.
+	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+	if err != nil {
+		h.log.Printf("error hashing password: %v", err)
+		return nil, err
+	}
+
 	id, err := h.generateRoomID(h.cfg.RoomIDLen, 5)
 	if err != nil {
 		return nil, err
@@ -104,30 +113,37 @@ func (h *Hub) AddRoom(name string, password []byte) (*Room, error) {
 	if err := h.Store.AddRoom(store.Room{ID: id,
 		Name:      name,
 		CreatedAt: time.Now(),
-		Password:  password}, h.cfg.RoomAge); err != nil {
+		Password:  pwdHash}, h.cfg.RoomAge); err != nil {
 		h.log.Printf("error creating room in the store: %v", err)
 		return nil, errors.New("error creating room")
 	}
 
 	// Initialize the room.
-	return h.initRoom(id, name, password, false), nil
+	return h.initRoom(id, name, pwdHash, false), nil
 }
 
 // AddPredefinedRoom creates a predefined room in the store, adds it to the hub.
 // If it already exists, no error is returned.
-func (h *Hub) AddPredefinedRoom(ID, name string, password []byte) (*Room, error) {
+func (h *Hub) AddPredefinedRoom(ID, name, password string) (*Room, error) {
+
+	// Hash the password.
+	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+	if err != nil {
+		h.log.Printf("error hashing password: %v", err)
+		return nil, err
+	}
 
 	// Add the room to DB.
 	if err := h.Store.AddRoom(store.Room{ID: ID,
 		Name:      name,
 		CreatedAt: time.Now(),
-		Password:  password}, h.cfg.RoomAge); err != nil {
+		Password:  pwdHash}, h.cfg.RoomAge); err != nil {
 		h.log.Printf("error creating room in the store: %v", err)
 		return nil, errors.New("error creating room")
 	}
 
 	// Initialize the room.
-	return h.initRoom(ID, name, password, true), nil
+	return h.initRoom(ID, name, pwdHash, true), nil
 }
 
 // ActivateRoom loads a room from the store into the hub if it's not already active.
@@ -145,7 +161,7 @@ func (h *Hub) ActivateRoom(id string) (*Room, error) {
 	}
 
 	// Initialize the room.
-	return h.initRoom(r.ID, r.Name, r.Password, room.Predefined), nil
+	return h.initRoom(r.ID, r.Name, r.Password, false), nil
 }
 
 // GetRoom retrives an active room from the hub.
