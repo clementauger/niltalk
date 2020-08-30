@@ -152,9 +152,6 @@ func (n *Notifier) Init() error {
 }
 
 func (n *Notifier) OnPeerMessage(msg, handle string) {
-	if msg != n.Options.Enabler {
-		return
-	}
 	if n.limiter != nil && !n.limiter.Allow() {
 		return
 	}

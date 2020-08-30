@@ -25,6 +25,7 @@ const (
 	TypeRoomFull        = "room.full"
 	TypeNotice          = "notice"
 	TypeHandle          = "handle"
+	TypeGrowl           = "growl"
 )
 
 // Config represents the app configuration.
@@ -56,10 +57,18 @@ type Config struct {
 
 // PredefinedRoom are static rooms declared in the configuration file.
 type PredefinedRoom struct {
-	ID       string         `koanf:"id"`
-	Name     string         `koanf:"name"`
-	Password string         `koanf:"password"`
-	Growl    notify.Options `koanf:"growl"`
+	ID       string           `koanf:"id"`
+	Name     string           `koanf:"name"`
+	Password string           `koanf:"password"`
+	Growl    notify.Options   `koanf:"growl"`
+	Users    []PredefinedUser `koanf:"users"`
+}
+
+// PredefinedUser are static users declared in the configuration file.
+type PredefinedUser struct {
+	Name     string `koanf:"name"`
+	Password string `koanf:"password"`
+	Growl    bool   `koanf:"growl"`
 }
 
 // Hub acts as the controller and container for all chat rooms.
@@ -107,6 +116,7 @@ func (h *Hub) AddRoom(name string, password []byte) (*Room, error) {
 // AddPredefinedRoom creates a predefined room in the store, adds it to the hub.
 // If it already exists, no error is returned.
 func (h *Hub) AddPredefinedRoom(ID, name string, password []byte) (*Room, error) {
+
 	// Add the room to DB.
 	if err := h.Store.AddRoom(store.Room{ID: ID,
 		Name:      name,

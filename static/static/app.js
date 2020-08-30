@@ -164,6 +164,7 @@ var app = new Vue({
 
         handleSendMessage() {
             Client.sendMessage(Client.MsgType["message"], this.message);
+            this.growl(this.message);
             this.message = "";
             window.clearTimeout(this.typingTimer);
             this.typingTimer = null;
@@ -489,6 +490,24 @@ var app = new Vue({
             this.notify(err, notifType.error);
           });
 
+        },
+
+        // send growl notifications
+        growl(msg) {
+          var growlable = window._growl;
+          if (!growlable){
+            return
+          }
+          var notify = false;
+          growlable.map((g)=>{
+            var re = new RegExp("(^|\\s)?"+g+"[\\s,.?!:=]*", 'g');
+            if (g.match(re)) {
+              notify=true;
+            }
+          })
+          if (notify) {
+            Client.sendNotification(this.message);
+          }
         }
     }
 });

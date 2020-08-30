@@ -14,7 +14,8 @@ var Client = new function () {
 		"peer.leave": "peer.leave",
 		"peer.ratelimited": "peer.ratelimited",
 		"notice": "notice",
-		"handle": "handle"
+		"handle": "handle",
+		"growl": "growl"
 	};
 	this.MsgType = MsgType;
 
@@ -93,6 +94,11 @@ var Client = new function () {
 	// send a message
 	this.sendMessage = function (typ, data) {
 		send({ "type": typ, "data": data });
+	}
+
+	// send a notification
+	this.sendNotification = function (msg) {
+		send({ "type": MsgType["growl"], "data": msg });
 	}
 
 	// ___ private

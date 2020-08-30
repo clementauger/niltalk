@@ -34,12 +34,14 @@ type peerReq struct {
 
 // Room represents a chat room.
 type Room struct {
-	ID         string
-	Name       string
-	Password   []byte
-	Predefined bool
-	hub        *Hub
-	mut        *sync.RWMutex
+	ID              string
+	Name            string
+	Password        []byte
+	Predefined      bool
+	PredefinedUsers []PredefinedUser
+
+	hub *Hub
+	mut sync.RWMutex
 
 	lastActivity time.Time
 
@@ -49,8 +51,9 @@ type Room struct {
 	// Broadcast channel for messages.
 	broadcastQ chan []byte
 
-	// OnPeerMessage is an async callback fired when a peer triggers a TypeMessage request.
-	OnPeerMessage func(msg, handle string)
+	// GrowlHandler is an async callback fired when a peer notifies an offline predefined users.
+	GrowlHandler func(msg, handle string)
+	GrowlEnabler []string
 
 	// Peer related requests.
 	peerQ chan peerReq
@@ -78,6 +81,32 @@ func NewRoom(id, name string, password []byte, h *Hub, predefined bool) *Room {
 		peerQ:        make(chan peerReq, 100),
 		disposeSig:   make(chan bool),
 		payloadCache: make([][]byte, 0, h.cfg.MaxCachedMessages),
+	}
+}
+
+// HandleGrowlNotifications sends growl notification if target user is offline.
+func (r *Room) HandleGrowlNotifications(fromPeer, msg string) {
+	if r.GrowlHandler == nil {
+		return
+	}
+	growlable := []string{}
+	for _, u := range r.PredefinedUsers {
+		if u.Growl {
+			growlable = append(growlable, u.Name)
+		}
+	}
+	r.mut.Lock()
+	defer r.mut.Unlock()
+	var online bool
+	for p := range r.peers {
+		for _, g := range growlable {
+			if p.Handle == g {
+				return
+			}
+		}
+	}
+	if !online {
+		go r.GrowlHandler(msg, fromPeer)
 	}
 }
 

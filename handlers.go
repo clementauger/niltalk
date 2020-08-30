@@ -54,6 +54,7 @@ type reqRoom struct {
 	Name     string `json:"name"`
 	Handle   string `json:"handle"`
 	Password string `json:"password"`
+	UserPwd  string `json:"userpwd"`
 }
 
 var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {

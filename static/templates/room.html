@@ -144,5 +144,11 @@
 		<h1>Disconnected.</h1>
 	</div> -->
 
+{{if gt (len .Data.Room.GrowlEnabler) 0 }}
+<script>
+	window._growl = {{.Data.Room.GrowlEnabler}};
+</script>
+{{end}}
+
 {{ template "footer" . }}
 {{end}}

@@ -17,8 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	rice "github.com/GeertJohan/go.rice"
 	"github.com/go-chi/chi"
 	"github.com/knadh/koanf"
@@ -34,6 +32,7 @@ import (
 	"github.com/knadh/niltalk/store/mem"
 	"github.com/knadh/niltalk/store/redis"
 	flag "github.com/spf13/pflag"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -238,7 +237,6 @@ func main() {
 
 	app.hub = hub.NewHub(app.cfg, store, logger)
 
-	// app.cfg.Rooms = map[string]hub.PredefinedRoom{}
 	if err := ko.Unmarshal("rooms", &app.cfg.Rooms); err != nil {
 		logger.Fatalf("error unmarshalling 'rooms' config: %v", err)
 	}
@@ -254,13 +252,20 @@ func main() {
 			logger.Printf("error creating a predefined room %q: %v", room.Name, err)
 			continue
 		}
-		if room.Growl.Enabler != "" {
+		r.PredefinedUsers = make([]hub.PredefinedUser, len(room.Users), len(room.Users))
+		copy(r.PredefinedUsers, room.Users)
+		for _, u := range r.PredefinedUsers {
+			if u.Growl {
+				r.GrowlEnabler = append(r.GrowlEnabler, "@"+u.Name)
+			}
+		}
+		if len(r.GrowlEnabler) > 0 {
 			n := notify.New(room.Growl, app.cfg.RootURL, r.ID, app.logger)
 			if err = n.Init(); err != nil {
 				logger.Printf("error setting up growl notifications for the predefined room %q: %v", room.Name, err)
 				continue
 			}
-			r.OnPeerMessage = n.OnPeerMessage
+			r.GrowlHandler = n.OnPeerMessage
 		}
 		_, err = app.hub.ActivateRoom(r.ID)
 		if err != nil {

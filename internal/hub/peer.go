@@ -127,9 +127,6 @@ func (p *Peer) processMessage(b []byte) {
 			// TODO: Respond
 			return
 		}
-		if p.room.OnPeerMessage != nil {
-			go p.room.OnPeerMessage(msg, p.Handle)
-		}
 		p.room.Broadcast(p.room.makeMessagePayload(msg, p, m.Type), true)
 
 	case TypeUpload:
@@ -168,6 +165,15 @@ func (p *Peer) processMessage(b []byte) {
 	// Request for peers list
 	case TypePeerList:
 		p.room.sendPeerList(p)
+
+	// Request growl notification
+	case TypeGrowl:
+		msg, ok := m.Data.(string)
+		if !ok {
+			// TODO: Respond
+			return
+		}
+		p.room.HandleGrowlNotifications(p.Handle, msg)
 
 	// Dipose of a room.
 	case TypeRoomDispose:
