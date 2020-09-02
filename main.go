@@ -327,7 +327,7 @@ func main() {
 	srv := http.Server{
 		Handler: r,
 	}
-	logger.Printf("starting server on http://%v", lnAddr)
+	logger.Printf("starting server on http://%v", ln.Addr().String())
 	go func() {
 		if err := srv.Serve(ln); err != nil {
 			logger.Fatalf("couldn't serve: %v", err)
