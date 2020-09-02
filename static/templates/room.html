@@ -14,14 +14,23 @@
 		<h3>Join room</h3>
 		<p>
 			<input :autofocus="'autofocus'" v-model="password" ref="form-password"
-				type="password" name="password" placeholder="Password"
+				type="password" name="password" placeholder="Room Password"
+				{{ if not .Data.Room.Predefined }}required minlength="6" maxlength="100"{{ end }}
 				 maxlength="100" autocomplete="off" />
 		</p>
 		<p>
-			<input v-model="handle" type="text" name="handle" placeholder="Nick name (optional)" pattern=".{3,30}"
+			<input v-model="handle" type="text" name="handle"
+				placeholder="Nick name (optional)" pattern=".{3,30}"
 				maxlength="30" autocomplete="off" />
 			<span class="help">3 to 30 characters</span>
 		</p>
+		{{ if .Data.Room.Predefined }}
+		<p>
+			<input v-model="userpwd" type="password" name="userpwd"
+				placeholder="Nick name password"
+				maxlength="100" autocomplete="off" />
+		</p>
+		{{ end }}
 		<p>
 			<input type="submit" class="button" value="Login" />
 		</p>

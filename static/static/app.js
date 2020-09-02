@@ -53,6 +53,7 @@ var app = new Vue({
         roomName: "",
         handle: "",
         password: "",
+        userpwd: "",
         message: "",
 
         // Chat data.
@@ -111,7 +112,7 @@ var app = new Vue({
             this.notify("Logging in", notifType.notice);
             fetch("/r/" + _room.id + "/login", {
                 method: "post",
-                body: JSON.stringify({ handle: handle, password: this.password }),
+                body: JSON.stringify({ handle: handle, password: this.password, userpwd: this.userpwd }),
                 headers: { "Content-Type": "application/json; charset=utf-8" }
             })
                 .then(resp => resp.json())
