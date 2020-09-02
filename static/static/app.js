@@ -571,12 +571,12 @@ var app = new Vue({
           var notify = false;
           growlable.map((g)=>{
             var re = new RegExp("(^|\\s)?"+g+"[\\s,.?!:=]*", 'g');
-            if (g.match(re)) {
+            if (msg.match(re)) {
               notify=true;
             }
           })
           if (notify) {
-            Client.sendNotification(this.message);
+            Client.sendMessage(Client.MsgType["growl"], this.message);
           }
         }
     }

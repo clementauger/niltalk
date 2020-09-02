@@ -97,11 +97,6 @@ var Client = new function () {
 		send({ "type": typ, "data": data });
 	}
 
-	// send a notification
-	this.sendNotification = function (msg) {
-		send({ "type": MsgType["growl"], "data": msg });
-	}
-
 	// ___ private
 	// send a message via the socket
 	// automatically encodes json if possible
