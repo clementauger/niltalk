@@ -246,7 +246,7 @@ func main() {
 			}
 		}
 		if len(r.GrowlEnabler) > 0 {
-			n := notify.New(room.Growl, app.cfg.RootURL, r.ID, app.logger)
+			n := notify.New(room.Growl, app.cfg.RootURL, r.ID, app.logger, assetBox)
 			if err = n.Init(); err != nil {
 				logger.Printf("error setting up growl notifications for the predefined room %q: %v", room.Name, err)
 				continue

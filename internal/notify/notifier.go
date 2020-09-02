@@ -33,6 +33,7 @@ type Notifier struct {
 	tpl         *template.Template
 	limiter     *rate.Limiter
 	soundBuffer *beep.Buffer
+	box         *rice.Box
 }
 
 type Options struct {
@@ -46,12 +47,13 @@ type Options struct {
 	RateLimitBurst  string `koanf:"rate-limit-burst"`
 }
 
-func New(opt Options, baseURL, roomID string, logger *log.Logger) *Notifier {
+func New(opt Options, baseURL, roomID string, logger *log.Logger, box *rice.Box) *Notifier {
 	return &Notifier{
 		Options: opt,
 		BaseURL: baseURL,
 		RoomID:  roomID,
 		Logger:  logger,
+		box:     box,
 	}
 }
 
@@ -79,9 +81,7 @@ func (n *Notifier) Init() error {
 				r = ioutil.NopCloser(z)
 			}
 		} else {
-			rConf := rice.Config{LocateOrder: []rice.LocateMethod{rice.LocateWorkingDirectory, rice.LocateAppended}}
-			assetBox := rConf.MustFindBox("static/static")
-			r, err = assetBox.Open(n.Options.Sound)
+			r, err = n.box.Open(n.Options.Sound)
 		}
 		if err != nil {
 			n.Logger.Printf("error loading growl sound for room %q: %v", n.RoomID, err)
