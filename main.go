@@ -366,10 +366,10 @@ func fileWatcher(files ...string) chan struct{} {
 					if !ok {
 						return
 					}
-					if event.Op&fsnotify.Write == fsnotify.Write {
-						logger.Printf("configuration file %q changed", event.Name)
-						out <- struct{}{}
-					}
+					// if event.Op&fsnotify.Write == fsnotify.Write {
+					logger.Printf("configuration file %q was modified", event.Name)
+					out <- struct{}{}
+					// }
 				case err, ok := <-watcher.Errors:
 					if !ok {
 						return
