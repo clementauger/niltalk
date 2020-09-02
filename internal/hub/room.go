@@ -28,6 +28,12 @@ type payloadMsgChat struct {
 	Msg        string `json:"message"`
 }
 
+type payloadUpload struct {
+	PeerID     string      `json:"peer_id"`
+	PeerHandle string      `json:"peer_handle"`
+	Data       interface{} `json:"data"`
+}
+
 // peerReq represents a peer request (join, leave etc.) that's processed
 // by a Room.
 type peerReq struct {
@@ -91,7 +97,6 @@ func NewRoom(id, name string, password []byte, h *Hub, predefined bool) *Room {
 // user password is the handle belongs to a predefined user.
 // Generates a session ID and stores it into the store.
 func (r *Room) Login(roomPwd, handle, handlePwd string, roomAge time.Duration) (string, error) {
-
 	if err := bcrypt.CompareHashAndPassword(r.Password, []byte(roomPwd)); err != nil {
 		return "", ErrInvalidRoomPassword
 	}
@@ -341,6 +346,16 @@ func (r *Room) makeMessagePayload(msg string, p *Peer, typ string) []byte {
 		PeerID:     p.ID,
 		PeerHandle: p.Handle,
 		Msg:        msg,
+	}
+	return r.makePayload(d, typ)
+}
+
+// makeUploadPayload prepares an upload message.
+func (r *Room) makeUploadPayload(data interface{}, p *Peer, typ string) []byte {
+	d := payloadUpload{
+		PeerID:     p.ID,
+		PeerHandle: p.Handle,
+		Data:       data,
 	}
 	return r.makePayload(d, typ)
 }

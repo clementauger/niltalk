@@ -53,6 +53,21 @@
 						</div>
 						<div class="content" v-html="formatMessage(m.message)"></div>
 					</div>
+					<div class="wrap uploading" v-else-if="m.type === Client.MsgType['uploading']">
+						<div class="meta">
+							<span class="peer">
+								<span class="avatar" :style="{'background-color': m.peer.avatar}"></span>
+								<span class="handle">{( m.peer.handle )}</span>
+							</span>
+							<span class="timestamp" :title="m.timestamp">{( formatDate(m.timestamp) )}</span>
+						</div>
+						<div class="content">
+							<img src="{{ .Config.RootURL }}/static/images/spinner.gif" class="spinner" />
+							<br/>
+							{( m.files.join(",") )}
+							- <b>{(m.percent)} %</b>
+						</div>
+					</div>
 					<div class="wrap" v-else-if="m.type === Client.MsgType['upload']">
 						<div class="meta">
 							<span class="peer">
@@ -62,9 +77,14 @@
 							<span class="timestamp" :title="m.timestamp">{( formatDate(m.timestamp) )}</span>
 						</div>
 						<div class="content">
-							<a v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + m.message" target="_blank">
-								<img v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + m.message" class="upload" />
-							</a>
+							<div v-for="(k, name) in m.res">
+								<a v-if="k && !k.Err" v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" target="_blank">
+									<img v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" class="upload" />
+								</a>
+								<span v-if="k && k.Err">
+									Failed to upload {(name)}: {(k.Err)}
+								</span>
+							</div>
 						</div>
 					</div>
 					<div class="wrap notice" v-else>

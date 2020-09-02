@@ -129,6 +129,14 @@ func (p *Peer) processMessage(b []byte) {
 		}
 		p.room.Broadcast(p.room.makeMessagePayload(msg, p, m.Type), true)
 
+	case TypeUploading:
+		data, ok := m.Data.(map[string]interface{})
+		if !ok {
+			// TODO: Respond
+			return
+		}
+		p.room.Broadcast(p.room.makeUploadPayload(data, p, m.Type), false)
+
 	case TypeUpload:
 		// Check rate limits and update counters.
 		now := time.Now()
@@ -145,18 +153,12 @@ func (p *Peer) processMessage(b []byte) {
 		p.lastMessage = now
 		p.numMessages++
 
-		msgs, ok := m.Data.([]interface{})
+		msg, ok := m.Data.(map[string]interface{})
 		if !ok {
 			// TODO: Respond
 			return
 		}
-		for _, msg := range msgs {
-			x, ok := msg.(string)
-			if !ok {
-				continue
-			}
-			p.room.Broadcast(p.room.makeMessagePayload(x, p, m.Type), true)
-		}
+		p.room.Broadcast(p.room.makeUploadPayload(msg, p, m.Type), true)
 
 	// "Typing" status.
 	case TypeTyping:

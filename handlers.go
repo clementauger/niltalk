@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"sync"
@@ -354,57 +355,82 @@ func handleUpload(store *upload.Store) func(w http.ResponseWriter, r *http.Reque
 	}()
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		r.ParseMultipartForm(store.MaxUploadSize)
+		err := r.ParseMultipartForm(store.MaxUploadSize)
 
-		roomID := chi.URLParam(r, "roomID")
-		mu.Lock()
-		// no defer here becasue file upload can be slow, thus lock for too long
-		x, ok := roomLimiters[roomID]
-		if !ok {
-			x = roomLimiter{
-				limiter: rate.NewLimiter(rate.Every(store.RlPeriod/time.Duration(store.RlCount)), store.RlBurst),
-				expire:  time.Now().Add(time.Minute * 10),
-			}
-			roomLimiters[roomID] = x
-		}
-		x.expire = time.Now().Add(time.Minute * 10)
-		roomLimiters[roomID] = x
-		mu.Unlock()
-		if !x.limiter.Allow() {
-			err := errors.New(http.StatusText(http.StatusTooManyRequests))
-			respondJSON(w, nil, err, http.StatusTooManyRequests)
-			return
-		}
-
-		var ids []string
-		for i := 0; i < 20; i++ {
-			key := fmt.Sprintf("file%v", i)
-			file, handler, err := r.FormFile(key)
-			if err == http.ErrMissingFile {
-				break
-			}
-			if err != nil {
-				continue
-			}
-			defer file.Close()
-			b, err := ioutil.ReadAll(file)
-			if err != nil {
-				continue
-			}
-			mimeType := http.DetectContentType(b)
-			if mimeType == "image/gif" || mimeType == "image/jpeg" || mimeType == "image/png" {
-				name := handler.Filename
-				up, err := store.Add(name, mimeType, b)
-				if err != nil {
-					continue
+		if err == nil {
+			roomID := chi.URLParam(r, "roomID")
+			mu.Lock()
+			// no defer here becasue file upload can be slow, thus lock for too long
+			x, ok := roomLimiters[roomID]
+			if !ok {
+				x = roomLimiter{
+					limiter: rate.NewLimiter(rate.Every(store.RlPeriod/time.Duration(store.RlCount)), store.RlBurst),
+					expire:  time.Now().Add(time.Minute * 10),
 				}
-				ids = append(ids, fmt.Sprintf("%v_%v", up.ID, up.Name))
+				roomLimiters[roomID] = x
+			}
+			x.expire = time.Now().Add(time.Minute * 10)
+			roomLimiters[roomID] = x
+			mu.Unlock()
+			if !x.limiter.Allow() {
+				err = errors.New(http.StatusText(http.StatusTooManyRequests))
 			}
 		}
 
-		respondJSON(w, struct {
-			IDs []string `json:"ids"`
-		}{ids}, nil, http.StatusOK)
+		type fileRes struct {
+			ID  string
+			Err string
+		}
+		res := map[string]fileRes{}
+		if err == nil {
+			var files []multipart.File
+			var handlers []*multipart.FileHeader
+			for i := 0; i < 20; i++ {
+				key := fmt.Sprintf("file%v", i)
+				file, handler, e := r.FormFile(key)
+				if e == http.ErrMissingFile {
+					// all files were processed.
+					break
+				}
+				if e != nil {
+					err = e
+				}
+				if err != nil {
+					break
+				}
+				defer file.Close()
+				files = append(files, file)
+				handlers = append(handlers, handler)
+			}
+			if err == nil {
+				for i, file := range files {
+					handler := handlers[i]
+					b, e := ioutil.ReadAll(file)
+					if e != nil {
+						res[handler.Filename] = fileRes{Err: e.Error()}
+						continue
+					}
+					mimeType := http.DetectContentType(b)
+					if mimeType == "image/gif" || mimeType == "image/jpeg" || mimeType == "image/png" {
+						name := handler.Filename
+						up, e := store.Add(name, mimeType, b)
+						if err != nil {
+							res[handler.Filename] = fileRes{Err: e.Error()}
+							continue
+						}
+						res[handler.Filename] = fileRes{ID: fmt.Sprintf("%v_%v", up.ID, up.Name)}
+					} else {
+						res[handler.Filename] = fileRes{Err: "invalid file type"}
+					}
+				}
+			}
+		}
+
+		s := http.StatusOK
+		if err != nil {
+			s = http.StatusBadRequest
+		}
+		respondJSON(w, res, err, s)
 	}
 }
 

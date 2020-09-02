@@ -399,6 +399,60 @@ var app = new Vue({
             this.scrollToNewester();
         },
 
+        onUpload(data) {
+          var d = data.data.data;
+          if (data.type==Client.MsgType["uploading"]) {
+            var found = false;
+            this.messages.map((m) => {
+              if (m.uid===d.uid){
+                m.files=d.files;
+                m.percent=d.percent;
+                m.type=data.type;
+                found=true;
+              }
+            });
+            if(!found) {
+              this.messages.push({
+                type: data.type,
+                timestamp: data.timestamp,
+                uid: d.uid,
+                files: d.files,
+                percent: d.percent,
+                peer: {
+                  id: data.data.peer_id,
+                  handle: data.data.peer_handle,
+                  avatar: this.hashColor(data.data.peer_id)
+                }
+              });
+            }
+          }else {
+            var found = false;
+            this.messages.map((m) => {
+              if (m.uid===d.uid){
+                m.res=d.res.data;
+                m.err=d.err;
+                m.type=data.type;
+                found=true;
+              }
+            });
+            if(!found) {
+              this.messages.push({
+                type: data.type,
+                timestamp: data.timestamp,
+                uid: d.uid,
+                res: d.res.data,
+                err: d.err,
+                peer: {
+                  id: data.data.peer_id,
+                  handle: data.data.peer_handle,
+                  avatar: this.hashColor(data.data.peer_id)
+                }
+              });
+            }
+          }
+          this.scrollToNewester();
+        },
+
         // Register chat client events.
         initClient() {
             Client.on(Client.MsgType["connect"], this.onConnect);
@@ -413,7 +467,8 @@ var app = new Vue({
             Client.on(Client.MsgType["peer.join"], (data) => { this.onPeerJoinLeave(data, Client.MsgType["peer.join"]); });
             Client.on(Client.MsgType["peer.leave"], (data) => { this.onPeerJoinLeave(data, Client.MsgType["peer.leave"]); });
             Client.on(Client.MsgType["message"], this.onMessage);
-            Client.on(Client.MsgType["upload"], this.onMessage);
+            Client.on(Client.MsgType["uploading"], this.onUpload);
+            Client.on(Client.MsgType["upload"], this.onUpload);
             Client.on(Client.MsgType["typing"], this.onTyping);
         },
 
@@ -464,32 +519,47 @@ var app = new Vue({
           // based on https://www.raymondcamden.com/2019/08/08/drag-and-drop-file-upload-in-vuejs
           let droppedFiles = e.dataTransfer.files;
           if(!droppedFiles) return;
+          var uid = Math.round(new Date().getTime() + (Math.random() * 100));
           // this tip, convert FileList to array, credit: https://www.smashingmagazine.com/2018/01/drag-drop-file-uploader-vanilla-js/
+          var ok = true;
           let formData = new FormData();
+          var files = [];
           ([...droppedFiles]).forEach((f,x) => {
-            if (x<20) {
-              formData.append('file'+(x), f);
-            }else{
+            if (x>=20) {
               this.notify("Too much files to upload", notifType.error);
+              ok = false;
+              return
             }
-          });
-
-          fetch("/r/" + _room.id + "/upload", {
-            method:'POST',
-            body: formData
+            formData.append('file'+(x), f);
+            files.push(f.name)
           })
-          .then(res => res.json())
-          .then(res => {
+          if (!ok) {
+            return
+          }
+          Client.sendMessage(Client.MsgType["uploading"], {uid:uid,files:files,percent:0});
+
+          axios.post("/r/" + _room.id + "/upload", formData,
+            {
+              headers: {
+                  'Content-Type': 'multipart/form-data'
+              },
+              onUploadProgress: function( progressEvent ) {
+                var p = parseInt( Math.round( ( progressEvent.loaded / progressEvent.total ) * 100 ) );
+                Client.sendMessage(Client.MsgType["uploading"], {uid:uid,files:files,percent:p});
+              }
+            }
+          ).then(res => {
             if (res.error){
               this.notify(res.error, notifType.error);
+              Client.sendMessage(Client.MsgType["upload"], {uid:uid,err:res.error});
             }else{
-              Client.sendMessage(Client.MsgType["upload"], res.data.ids);
+              Client.sendMessage(Client.MsgType["upload"], {uid:uid,res:res.data});
             }
           })
           .catch(err => {
+            Client.sendMessage(Client.MsgType["upload"], {uid:uid,err:err});
             this.notify(err, notifType.error);
           });
-
         },
 
         // send growl notifications

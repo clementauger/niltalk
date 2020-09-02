@@ -282,6 +282,15 @@ form .help {
   margin: auto;
   display: block;
 }
+.chat .messages .message .uploading {
+  text-align: center;
+}
+.chat .messages .message .uploading .spinner {
+  width: 50px;
+  margin: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
 .chat .messages .message:hover {
   background: #fafafa;
 }

@@ -16,6 +16,7 @@ import (
 const (
 	TypeTyping          = "typing"
 	TypeMessage         = "message"
+	TypeUploading       = "uploading"
 	TypeUpload          = "upload"
 	TypePeerList        = "peer.list"
 	TypePeerInfo        = "peer.info"
@@ -96,7 +97,6 @@ func NewHub(cfg *Config, store store.Store, l *log.Logger) *Hub {
 // AddRoom creates a new room in the store, adds it to the hub, and
 // returns the room (which has to be .Run() on a goroutine then).
 func (h *Hub) AddRoom(name, password string) (*Room, error) {
-
 	// Hash the password.
 	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	if err != nil {
@@ -125,7 +125,6 @@ func (h *Hub) AddRoom(name, password string) (*Room, error) {
 // AddPredefinedRoom creates a predefined room in the store, adds it to the hub.
 // If it already exists, no error is returned.
 func (h *Hub) AddPredefinedRoom(ID, name, password string) (*Room, error) {
-
 	// Hash the password.
 	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	if err != nil {
