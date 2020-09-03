@@ -55,13 +55,14 @@ storage = "redis"
     message="{{.UserName}} is calling you. Open {{.URL}}"
     title="Niltalk notification"
     sound="beep.mp3"
-      [[rooms.local.users]]
-      name="me1"
-      password="azerty"
-      growl=true
-      [[rooms.local.users]]
-      name="me2"
-      password="azerty"
+    motd="Welcome message of the day"
+    [[rooms.local.users]]
+    name="me1"
+    password="azerty"
+    growl=true
+    [[rooms.local.users]]
+    name="me2"
+    password="azerty"
 
 # Redis cache server.
 # Rooms are cached until they expires. Messages are not cached.

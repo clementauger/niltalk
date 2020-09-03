@@ -77,6 +77,9 @@ type Room struct {
 	payloadCache [][]byte
 
 	timestamp time.Time
+
+	// Message Of The Day
+	motd string
 }
 
 // NewRoom returns a new instance of Room.
@@ -263,6 +266,10 @@ loop:
 					for _, b := range r.payloadCache {
 						req.peer.SendData(b)
 					}
+				}
+
+				if len(r.motd) > 0 {
+					req.peer.SendData(r.makeMessagePayload(r.motd, req.peer, TypeMotd))
 				}
 
 				// Notify all peers of the new addition.

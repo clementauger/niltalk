@@ -16,7 +16,8 @@ var Client = new function () {
 		"peer.ratelimited": "peer.ratelimited",
 		"notice": "notice",
 		"handle": "handle",
-		"growl": "growl"
+		"growl": "growl",
+		"motd": "motd"
 	};
 	this.MsgType = MsgType;
 

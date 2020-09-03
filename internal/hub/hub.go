@@ -28,6 +28,7 @@ const (
 	TypeNotice          = "notice"
 	TypeHandle          = "handle"
 	TypeGrowl           = "growl"
+	TypeMotd            = "motd"
 )
 
 // Config represents the app configuration.
@@ -64,6 +65,7 @@ type PredefinedRoom struct {
 	Password string           `koanf:"password"`
 	Growl    notify.Options   `koanf:"growl"`
 	Users    []PredefinedUser `koanf:"users"`
+	Motd     string           `koanf:"motd"`
 }
 
 // PredefinedUser are static users declared in the configuration file.
@@ -175,6 +177,9 @@ func (h *Hub) GetRoom(id string) *Room {
 func (h *Hub) initRoom(id, name string, password []byte, predefined bool) *Room {
 	r := NewRoom(id, name, password, h, predefined)
 	h.mut.Lock()
+	if predefined {
+		r.motd = h.cfg.Rooms[id].Motd
+	}
 	h.rooms[id] = r
 	h.mut.Unlock()
 	go r.run()

@@ -62,6 +62,9 @@
 						</div>
 						<div class="content" v-html="formatMessage(m.message)"></div>
 					</div>
+					<div class="wrap motd" v-else-if="m.type === Client.MsgType['motd']">
+						{( m.message )}
+					</div>
 					<div class="wrap uploading" v-else-if="m.type === Client.MsgType['uploading']">
 						<div class="meta">
 							<span class="peer">
