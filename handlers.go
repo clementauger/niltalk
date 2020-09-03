@@ -85,6 +85,17 @@ func handleRoomPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	al:=r.URL.Query().Get("al")
+	if al != "" {
+		sessID, err := room.LoginWithToken(al, app.cfg.RoomAge)
+		if err == nil {
+			ck := &http.Cookie{Name: app.cfg.SessionCookie, Value: sessID, Path: fmt.Sprintf("/r/%v", room.ID)}
+			http.SetCookie(w, ck)
+			http.Redirect(w, r, r.URL.String(), http.StatusTemporaryRedirect)
+			return
+		}
+	}
+
 	out := tplData{
 		Title: room.Name,
 		Room:  room,

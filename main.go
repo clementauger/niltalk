@@ -251,7 +251,7 @@ func main() {
 				logger.Printf("error setting up growl notifications for the predefined room %q: %v", room.Name, err)
 				continue
 			}
-			r.GrowlHandler = n.OnPeerMessage
+			r.GrowlHandler = n.OnGrowlMessage
 		}
 		_, err = app.hub.ActivateRoom(r.ID)
 		if err != nil {

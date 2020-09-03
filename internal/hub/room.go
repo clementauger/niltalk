@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -50,7 +50,6 @@ type Room struct {
 	PredefinedUsers []PredefinedUser
 
 	hub *Hub
-	mut sync.RWMutex
 
 	lastActivity time.Time
 
@@ -61,8 +60,9 @@ type Room struct {
 	broadcastQ chan []byte
 
 	// GrowlHandler is an async callback fired when a peer notifies an offline predefined users.
-	GrowlHandler func(msg, handle string)
+	GrowlHandler func(msg, handle, token string)
 	GrowlEnabler []string
+	growlTokens  *tokenStore
 
 	// Peer related requests.
 	peerQ chan peerReq
@@ -70,6 +70,8 @@ type Room struct {
 	// Dispose signal.
 	disposeSig chan bool
 	closed     bool
+
+	op chan func()
 
 	// Message / payload cache.
 	payloadCache [][]byte
@@ -90,6 +92,8 @@ func NewRoom(id, name string, password []byte, h *Hub, predefined bool) *Room {
 		peerQ:        make(chan peerReq, 100),
 		disposeSig:   make(chan bool),
 		payloadCache: make([][]byte, 0, h.cfg.MaxCachedMessages),
+		growlTokens:  newTokenStore(),
+		op:           make(chan func()),
 	}
 }
 
@@ -126,6 +130,7 @@ func (r *Room) Login(roomPwd, handle, handlePwd string, roomAge time.Duration) (
 var (
 	ErrInvalidRoomPassword = fmt.Errorf("invalid room password")
 	ErrInvalidUserPassword = fmt.Errorf("invalid user password")
+	ErrInvalidToken        = fmt.Errorf("invalid autologin token")
 )
 
 // HandleGrowlNotifications sends growl notification if target user is offline.
@@ -139,19 +144,55 @@ func (r *Room) HandleGrowlNotifications(fromPeer, msg string) {
 			growlable = append(growlable, u.Name)
 		}
 	}
-	r.mut.Lock()
-	defer r.mut.Unlock()
-	var online bool
-	for p := range r.peers {
-		for _, g := range growlable {
-			if p.Handle == g {
-				return
-			}
+	if len(growlable) < 1 {
+		return
+	}
+	toUser := ""
+	for _, g := range growlable {
+		if strings.Contains(msg, "@"+g) {
+			toUser = g
+			break
 		}
 	}
-	if !online {
-		go r.GrowlHandler(msg, fromPeer)
+	if toUser == "" {
+		toUser = growlable[0]
 	}
+
+	r.op <- func() {
+		for p := range r.peers {
+			for _, g := range growlable {
+				if p.Handle == g {
+					return
+				}
+			}
+		}
+		tok := r.growlTokens.getOrCreateToken(toUser)
+		go r.GrowlHandler(msg, fromPeer, tok)
+	}
+}
+
+// LoginWithToken allows for automatic login using a temporary token.
+func (r *Room) LoginWithToken(token string, roomAge time.Duration) (string, error) {
+
+	handle := r.growlTokens.checkToken(token)
+
+	if len(handle) < 1 {
+		return "", ErrInvalidToken
+	}
+
+	// Register a new session for the peer in the DB.
+	sessID, err := GenerateGUID(32)
+	if err != nil {
+		r.hub.log.Printf("error generating session ID: %v", err)
+		return "", errors.New("error generating session ID")
+	}
+
+	if err := r.hub.Store.AddSession(sessID, handle, r.ID, roomAge); err != nil {
+		r.hub.log.Printf("error creating session: %v", err)
+		return "", errors.New("error storing session")
+	}
+
+	return sessID, nil
 }
 
 // AddPeer adds a new peer to the room given a WS connection from an HTTP
@@ -181,6 +222,9 @@ func (r *Room) run() {
 loop:
 	for {
 		select {
+		case op := <-r.op:
+			op()
+
 		// Dispose request.
 		case <-r.disposeSig:
 			if r.Predefined {

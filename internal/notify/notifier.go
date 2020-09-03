@@ -151,14 +151,19 @@ func (n *Notifier) Init() error {
 	return nil
 }
 
-func (n *Notifier) OnPeerMessage(msg, handle string) {
+// OnGrowlMessage handles growl notifications.
+func (n *Notifier) OnGrowlMessage(msg, handle, token string) {
 	if n.limiter != nil && !n.limiter.Allow() {
 		return
 	}
 	body := n.Options.Message
 	var s bytes.Buffer
+	u := fmt.Sprintf("%v/r/%v", n.BaseURL, n.RoomID)
+	if len(token) > 0 {
+		u = fmt.Sprintf("%v/r/%v?al=%v", n.BaseURL, n.RoomID, token)
+	}
 	err := n.tpl.Execute(&s, map[string]interface{}{
-		"URL":      fmt.Sprintf("%v/r/%v", n.BaseURL, n.RoomID),
+		"URL":      u,
 		"UserName": handle,
 	})
 	if err != nil {
