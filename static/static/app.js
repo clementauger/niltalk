@@ -344,11 +344,13 @@ var app = new Vue({
 
             // Notice in the message area;
             peer.avatar = this.hashColor(peer.id);
-            this.messages.push({
-                type: typ,
-                peer: peer,
-                timestamp: data.timestamp
-            });
+            if (peer.id!==this.self.id){
+              this.messages.push({
+                  type: typ,
+                  peer: peer,
+                  timestamp: data.timestamp
+              });
+            }
             this.scrollToNewester();
         },
 
@@ -468,6 +470,7 @@ var app = new Vue({
             Client.on(Client.MsgType["peer.join"], (data) => { this.onPeerJoinLeave(data, Client.MsgType["peer.join"]); });
             Client.on(Client.MsgType["peer.leave"], (data) => { this.onPeerJoinLeave(data, Client.MsgType["peer.leave"]); });
             Client.on(Client.MsgType["message"], this.onMessage);
+            Client.on(Client.MsgType["motd"], this.onMessage);
             Client.on(Client.MsgType["uploading"], this.onUpload);
             Client.on(Client.MsgType["upload"], this.onUpload);
             Client.on(Client.MsgType["typing"], this.onTyping);
