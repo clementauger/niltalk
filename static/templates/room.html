@@ -86,13 +86,20 @@
 							<span class="timestamp" :title="m.timestamp">{( formatDate(m.timestamp) )}</span>
 						</div>
 						<div class="content">
-							<div v-for="(k, name) in m.res">
-								<a v-if="k && !k.Err" v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" target="_blank">
-									<img v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" class="upload" />
-								</a>
-								<span v-if="k && k.Err">
-									Failed to upload {(name)}: {(k.Err)}
-								</span>
+							<div v-if="m.err">
+								<img src="{{ .Config.RootURL }}/static/images/red-err.webp" class="red-err" />
+								<br/>
+								Failed to upload {(m.files.join(','))}: {(m.err)}
+							</div>
+							<div v-else>
+								<div v-for="(k, name) in m.res">
+									<a v-if="k && !k.Err" v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" target="_blank">
+										<img v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" class="upload" />
+									</a>
+									<span v-if="k && k.Err">
+										Failed to upload {(name)}: {(k.Err)}
+									</span>
+								</div>
 							</div>
 						</div>
 					</div>
