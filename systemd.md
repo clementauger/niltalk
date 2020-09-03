@@ -18,16 +18,18 @@ You are required to provide a working directory.
 This option must be set into the unit file.
 
 ```sh
-sudo cp niltalk.service /etc/systemd/system/
-sudo systemctl enable niltalk.service
-sudo systemctl start niltalk.service
-sudo journalctl -fu niltalk.service
+mkdir -p ~/.config/systemd/user/
+cp niltalk.service ~/.config/systemd/user/
+systemctl --user enable niltalk.service
+systemctl --user start niltalk.service
+journalctl --user -fu niltalk.service
 ```
 
 To disable the service
 
 ```sh
-sudo systemctl stop niltalk.service
-sudo systemctl disable niltalk.service
-sudo journalctl -fu niltalk.service
+systemctl --user stop niltalk.service
+systemctl --user disable niltalk.service
+journalctl --user -fu niltalk.service
+rm ~/.config/systemd/user/niltalk.service
 ```
