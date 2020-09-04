@@ -114,6 +114,9 @@ func New(cfg Config) *Store {
 
 // Add a new item to the store.
 func (s *Store) Add(name, mimeType string, data []byte) (File, error) {
+	if int64(len(data)) > s.MaxUploadSize {
+		return File{}, ErrFileTooLarge
+	}
 	h := sha1.New()
 	h.Write(data)
 	id := fmt.Sprintf("%x", h.Sum(nil))
