@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"strings"
@@ -85,7 +84,7 @@ func handleRoomPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	al:=r.URL.Query().Get("al")
+	al := r.URL.Query().Get("al")
 	if al != "" {
 		sessID, err := room.LoginWithToken(al, app.cfg.RoomAge)
 		if err == nil {
@@ -389,8 +388,10 @@ func handleUpload(store *upload.Store) func(w http.ResponseWriter, r *http.Reque
 		}
 
 		type fileRes struct {
-			ID  string
-			Err string
+			ID       string `json:"id"`
+			Err      string `json:"err"`
+			MimeType string `json:"mimetype"`
+			Name     string `json:"name"`
 		}
 		res := map[string]fileRes{}
 		if err == nil {
@@ -421,18 +422,14 @@ func handleUpload(store *upload.Store) func(w http.ResponseWriter, r *http.Reque
 						res[handler.Filename] = fileRes{Err: e.Error()}
 						continue
 					}
+					name := handler.Filename
 					mimeType := http.DetectContentType(b)
-					if mimeType == "image/gif" || mimeType == "image/jpeg" || mimeType == "image/png" {
-						name := handler.Filename
-						up, e := store.Add(name, mimeType, b)
-						if err != nil {
-							res[handler.Filename] = fileRes{Err: e.Error()}
-							continue
-						}
-						res[handler.Filename] = fileRes{ID: fmt.Sprintf("%v_%v", up.ID, up.Name)}
-					} else {
-						res[handler.Filename] = fileRes{Err: "invalid file type"}
+					up, e := store.Add(name, mimeType, b)
+					if e != nil {
+						res[handler.Filename] = fileRes{Err: e.Error(), MimeType: mimeType, Name: name}
+						continue
 					}
+					res[handler.Filename] = fileRes{ID: fmt.Sprintf("%v_%v", up.ID, up.Name), MimeType: mimeType, Name: name}
 				}
 			}
 		}
@@ -453,11 +450,18 @@ func handleUploaded(store *upload.Store) func(w http.ResponseWriter, r *http.Req
 		fileID = strings.Split(fileID, "_")[0]
 		up, err := store.Get(fileID)
 		if err != nil {
-			log.Println(err)
-			respondJSON(w, nil, err, http.StatusNotFound)
+			logger.Printf("failed to fetch uploaded file %q from the store: %v", fileID, err)
+			respondJSON(w, nil, errors.New("file not found"), http.StatusNotFound)
 			return
 		}
 		w.Header().Add("Content-Type", up.MimeType)
+		switch up.MimeType {
+		case "image/jpeg", "image/png", "image/gif", "application/pdf":
+		default:
+			w.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%q", up.Name))
+			w.Header().Add("Content-Transfer-Encoding", "binary")
+			w.Header().Add("Accept-Ranges", "bytes")
+		}
 		w.Header().Add("Content-Length", fmt.Sprint(len(up.Data)))
 		if store.MaxAge > 0 {
 			w.Header().Add("Cache-Control", maxAgeHeader)

@@ -285,6 +285,9 @@ form .help {
   margin: auto;
   display: block;
 }
+.chat .messages .message .upload.icon {
+  max-width: 50px;
+}
 .chat .messages .message .uploading {
   text-align: center;
 }
