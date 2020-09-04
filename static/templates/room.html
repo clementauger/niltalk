@@ -96,11 +96,18 @@
 							</div>
 							<div v-else>
 								<div v-for="(k, name) in m.res">
-									<a v-if="k && !k.Err" v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" target="_blank">
-										<img v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.ID" class="upload" />
+									<a v-if="k && !k.err" v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" target="_blank" v-bind:title="k.name">
+										<img v-if="k.mimetype.startsWith('image/png')" v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
+										<img v-else-if="k.mimetype.startsWith('image/jpeg')" v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
+										<img v-else-if="k.mimetype.startsWith('image/gif')" v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
+										<img v-else-if="k.mimetype.startsWith('application/vnd.ms-excel')" src="{{ .Config.RootURL }}/static/icons/xls.jpg" class="upload icon" />
+										<img v-else-if="k.mimetype.startsWith('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')" src="{{ .Config.RootURL }}/static/icons/xls.jpg" class="upload icon" />
+										<img v-else-if="k.mimetype.startsWith('application/pdf')" src="{{ .Config.RootURL }}/static/icons/pdf.jpg" class="upload icon" />
+										<img v-else-if="k.mimetype.startsWith('text/plain')" src="{{ .Config.RootURL }}/static/icons/txt.png" class="upload icon" />
+										<span v-else>{( k.name )}</span>
 									</a>
-									<span v-if="k && k.Err">
-										Failed to upload {(name)}: {(k.Err)}
+									<span v-if="k && k.err">
+										Failed to upload {( k.name )}: {(k.err)}
 									</span>
 								</div>
 							</div>
