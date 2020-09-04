@@ -271,6 +271,10 @@ form .help {
 .chat .messages .motd {
   text-align: center;
 }
+.chat .messages .ping,
+.chat .messages .help {
+  color: darkgray;
+}
 .chat .messages.dragover {
   border-style: dashed;
   border-width: 2px;

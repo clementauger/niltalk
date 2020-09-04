@@ -25,6 +25,25 @@ Vue.component("expand-link", {
     `
 });
 
+var commands = {
+  "growl": {
+    "help": "Send a growl notification to an user",
+    "usage": "/growl [user] [message]",
+  },
+  "ping": {
+    "help": "Send a ping notification to an user",
+    "usage": "/ping [user] [message]",
+  },
+  "whisper": {
+    "help": "Send a message to a specific user",
+    "usage": "/whisper [user] [message]",
+  },
+  "help": {
+    "help": "Show commands help",
+    "usage": "/help [command]?",
+  },
+}
+
 var app = new Vue({
     el: "#app",
     delimiters: ["{(", ")}"],
@@ -164,11 +183,59 @@ var app = new Vue({
         },
 
         handleSendMessage() {
-            Client.sendMessage(Client.MsgType["message"], this.message);
-            this.growl(this.message);
-            this.message = "";
-            window.clearTimeout(this.typingTimer);
-            this.typingTimer = null;
+          window.clearTimeout(this.typingTimer);
+          this.typingTimer = null;
+
+          var msg = this.message;
+          this.message = "";
+
+          //lookup for a command
+          var commandName = "";
+          Object.keys(commands).map((key)=>{
+            var re = new RegExp("^(/"+key+")(\\s+|$)");
+            if (msg.match(re)) {
+              commandName = key
+            }
+          });
+
+          // no command provided, handle a regular message
+          if (commandName.length<1) {
+            Client.sendMessage(Client.MsgType["message"], msg);
+
+          }else if (commandName=="help"){
+            var message = "";
+            var re = new RegExp("^(/"+commandName+")\\s+([^\\s]+)");
+            var matches = msg.match(re);
+            if (matches) {
+              var key = matches[2]
+              message += "<b>/" + key + "</b>: "+commands[key].help+"<br/>"
+              message += "Usage " + commands[key].usage+"<br/>"
+            } else{
+              message += "<b>Help for all commands</b><br/>"
+              Object.keys(commands).map((key)=>{
+                message += "<br/>"
+                message += "<b>/"+key +"</b>: "+commands[key].help+"<br/>"
+                message += "Usage: " + commands[key].usage+"<br/>"
+              });
+            }
+            this.messages.push({
+                type: Client.MsgType["help"],
+                message: message
+            });
+            this.scrollToNewester();
+
+          }else if (commandName=="growl"){
+            var re = new RegExp("^(/"+commandName+")\\s+([^\\s]+)\\s+(.*)");
+            var matches = msg.match(re);
+            Client.sendMessage(Client.MsgType["growl"], {to:matches[2], msg:matches[3],from: this.self.handle});
+
+          }else if (commandName=="ping"){
+            var re = new RegExp("^(/"+commandName+")\\s+([^\\s]+)(\\s+.*)?");
+            var matches = msg.match(re);
+            Client.sendMessage(Client.MsgType["ping"], {to:matches[2], msg:matches[3],from: this.self.handle});
+
+          }else if (commandName=="whisper"){
+          }
         },
 
         handleLogout() {
@@ -251,7 +318,12 @@ var app = new Vue({
 
         scrollToNewester() {
             this.$nextTick().then(function () {
-                this.$refs["messages"].querySelector(".message:last-child").scrollIntoView();
+              if (this.$refs["messages"]) {
+                var el = this.$refs["messages"].querySelector(".message:last-child")
+                if (el) {
+                  el.scrollIntoView();
+                }
+              }
             }.bind(this));
         },
 
@@ -456,6 +528,28 @@ var app = new Vue({
           this.scrollToNewester();
         },
 
+        onPing(data) {
+          if (!document.hasFocus()) {
+            var msg = data.data.data.msg;
+            var from = data.data.data.from;
+            if (msg) {
+              this.messages.push({
+                type: Client.MsgType["ping"],
+                message: msg,
+                timestamp: data.timestamp,
+                peer: {
+                    id: data.data.peer_id,
+                    handle: data.data.peer_handle,
+                    avatar: this.hashColor(data.data.peer_id)
+                }
+              });
+              this.scrollToNewester();
+              this.newActivity = true;
+              this.beep();
+            }
+          }
+        },
+
         // Register chat client events.
         initClient() {
             Client.on(Client.MsgType["connect"], this.onConnect);
@@ -474,6 +568,7 @@ var app = new Vue({
             Client.on(Client.MsgType["uploading"], this.onUpload);
             Client.on(Client.MsgType["upload"], this.onUpload);
             Client.on(Client.MsgType["typing"], this.onTyping);
+            Client.on(Client.MsgType["ping"], this.onPing);
         },
 
         initTimers() {
@@ -564,24 +659,6 @@ var app = new Vue({
             Client.sendMessage(Client.MsgType["upload"], {uid:uid,err:err});
             this.notify(err, notifType.error);
           });
-        },
-
-        // send growl notifications
-        growl(msg) {
-          var growlable = window._growl;
-          if (!growlable){
-            return
-          }
-          var notify = false;
-          growlable.map((g)=>{
-            var re = new RegExp("(^|\\s)?"+g+"[\\s,.?!:=]*", 'g');
-            if (msg.match(re)) {
-              notify=true;
-            }
-          })
-          if (notify) {
-            Client.sendMessage(Client.MsgType["growl"], this.message);
-          }
         }
     }
 });

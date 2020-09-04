@@ -17,7 +17,9 @@ var Client = new function () {
 		"notice": "notice",
 		"handle": "handle",
 		"growl": "growl",
-		"motd": "motd"
+		"ping": "ping",
+		"motd": "motd",
+		"help": "help"
 	};
 	this.MsgType = MsgType;
 

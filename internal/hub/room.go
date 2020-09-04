@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -41,6 +40,13 @@ type peerReq struct {
 	peer    *Peer
 }
 
+// forwardReq represents a message forwarding from a peer to another peer.
+type forwardReq struct {
+	reqType string
+	to      string
+	data    interface{}
+}
+
 // Room represents a chat room.
 type Room struct {
 	ID              string
@@ -65,7 +71,8 @@ type Room struct {
 	growlTokens  *tokenStore
 
 	// Peer related requests.
-	peerQ chan peerReq
+	peerQ    chan peerReq
+	forwardQ chan forwardReq
 
 	// Dispose signal.
 	disposeSig chan bool
@@ -93,6 +100,7 @@ func NewRoom(id, name string, password []byte, h *Hub, predefined bool) *Room {
 		peers:        make(map[*Peer]bool, 100),
 		broadcastQ:   make(chan []byte, 100),
 		peerQ:        make(chan peerReq, 100),
+		forwardQ:     make(chan forwardReq, 100),
 		disposeSig:   make(chan bool),
 		payloadCache: make([][]byte, 0, h.cfg.MaxCachedMessages),
 		growlTokens:  newTokenStore(),
@@ -137,39 +145,30 @@ var (
 )
 
 // HandleGrowlNotifications sends growl notification if target user is offline.
-func (r *Room) HandleGrowlNotifications(fromPeer, msg string) {
+func (r *Room) HandleGrowlNotifications(fromPeer, to, msg string) {
 	if r.GrowlHandler == nil {
 		return
 	}
-	growlable := []string{}
+	var ok bool
 	for _, u := range r.PredefinedUsers {
-		if u.Growl {
-			growlable = append(growlable, u.Name)
-		}
-	}
-	if len(growlable) < 1 {
-		return
-	}
-	toUser := ""
-	for _, g := range growlable {
-		if strings.Contains(msg, "@"+g) {
-			toUser = g
+		if u.Growl && u.Name == to {
+			ok = true
 			break
 		}
 	}
-	if toUser == "" {
-		toUser = growlable[0]
+	if !ok {
+		return
 	}
 
 	r.op <- func() {
+		// check if user is online
 		for p := range r.peers {
-			for _, g := range growlable {
-				if p.Handle == g {
-					return
-				}
+			if p.Handle == to {
+				return
 			}
 		}
-		tok := r.growlTokens.getOrCreateToken(toUser)
+		// user is offline, generate a login token, send the notification
+		tok := r.growlTokens.getOrCreateToken(to)
 		go r.GrowlHandler(msg, fromPeer, tok)
 	}
 }
@@ -235,6 +234,24 @@ loop:
 			}
 			r.hub.Store.ClearSessions(r.ID)
 			break loop
+
+		case fw, ok := <-r.forwardQ:
+			if !ok {
+				break loop
+			}
+			var toPeer *Peer
+			for p := range r.peers {
+				if p.Handle == fw.to {
+					toPeer = p
+					break
+				}
+			}
+
+			if toPeer == nil {
+				continue
+			}
+
+			toPeer.SendData(r.makeUploadPayload(fw.data, toPeer, fw.reqType))
 
 		// Incoming peer request.
 		case req, ok := <-r.peerQ:
@@ -334,6 +351,7 @@ func (r *Room) remove() {
 	// Close all room channels.
 	close(r.broadcastQ)
 	close(r.peerQ)
+	close(r.forwardQ)
 	r.hub.removeRoom(r.ID)
 }
 
@@ -365,6 +383,11 @@ func (r *Room) queuePeerReq(reqType string, p *Peer) {
 func (r *Room) removePeer(p *Peer) {
 	close(p.dataQ)
 	delete(r.peers, p)
+}
+
+// sendPeerList sends the peer list to the given peer.
+func (r *Room) forwardTo(typ, to string, data interface{}) {
+	r.forwardQ <- forwardReq{reqType: typ, to: to, data: data}
 }
 
 // sendPeerList sends the peer list to the given peer.

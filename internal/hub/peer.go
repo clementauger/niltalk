@@ -170,12 +170,49 @@ func (p *Peer) processMessage(b []byte) {
 
 	// Request growl notification
 	case TypeGrowl:
-		msg, ok := m.Data.(string)
+		data, ok := m.Data.(map[string]interface{})
 		if !ok {
 			// TODO: Respond
 			return
 		}
-		p.room.HandleGrowlNotifications(p.Handle, msg)
+		var to string
+		{
+			x, ok := data["to"]
+			if ok {
+				to, _ = x.(string)
+			}
+		}
+		var from string
+		{
+			x, ok := data["from"]
+			if ok {
+				from, _ = x.(string)
+			}
+		}
+		var msg string
+		{
+			x, ok := data["msg"]
+			if ok {
+				msg, _ = x.(string)
+			}
+		}
+
+		p.room.HandleGrowlNotifications(from, to, msg)
+
+	case TypePing:
+		data, ok := m.Data.(map[string]interface{})
+		if !ok {
+			// TODO: Respond
+			return
+		}
+		var to string
+		{
+			x, ok := data["to"]
+			if ok {
+				to, _ = x.(string)
+			}
+		}
+		p.room.forwardTo(m.Type, to, m.Data)
 
 	// Dipose of a room.
 	case TypeRoomDispose:

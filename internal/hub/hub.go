@@ -28,6 +28,8 @@ const (
 	TypeNotice          = "notice"
 	TypeHandle          = "handle"
 	TypeGrowl           = "growl"
+	TypePing            = "ping"
+	TypeWhisper         = "whisper"
 	TypeMotd            = "motd"
 )
 

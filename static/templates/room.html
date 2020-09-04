@@ -62,6 +62,19 @@
 						</div>
 						<div class="content" v-html="formatMessage(m.message)"></div>
 					</div>
+					<div class="wrap help" v-else-if="m.type === Client.MsgType['help']">
+						<p v-html="m.message"></p>
+					</div>
+					<div class="wrap ping" v-else-if="m.type === Client.MsgType['ping']">
+						<div class="meta">
+							<span class="peer">
+								<span class="avatar" :style="{'background-color': m.peer.avatar}"></span>
+								<span class="handle">{( m.peer.handle )} is pinging you</span>
+							</span>
+							<span class="timestamp" :title="m.timestamp">{( formatDate(m.timestamp) )}</span>
+						</div>
+						<div class="content" v-html="formatMessage(m.message)"></div>
+					</div>
 					<div class="wrap motd" v-else-if="m.type === Client.MsgType['motd']">
 						{( m.message )}
 					</div>
