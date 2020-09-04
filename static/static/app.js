@@ -383,7 +383,7 @@ var app = new Vue({
                     break;
 
                 case Client.MsgType["room.dispose"]:
-                    this.notify("Room diposed", notifType.error);
+                    this.notify("Room disposed", notifType.error);
                     this.toggleChat();
                     this.disposed = true;
                     break;
