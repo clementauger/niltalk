@@ -5,7 +5,7 @@ Description=Niltalk service.
 Type=simple
 Restart=always
 RestartSec=3
-StartLimitIntervalSec=360
+StartLimitInterval=360
 ExecStart=/path/to/niltalk
 WorkingDirectory=/path/to/niltalk/wordkingdir
 
