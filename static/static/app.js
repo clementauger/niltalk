@@ -314,7 +314,7 @@ var app = new Vue({
             div.appendChild(document.createTextNode(text));
             var html = div.innerHTML;
             var links = html.match(linkifyExpr)
-            links.map((l)=>{
+            links && links.map((l)=>{
               var match = null;
               // lookup for some video integration.
               //https://www.youtube.com/watch?v=kgQEvTujCoE
