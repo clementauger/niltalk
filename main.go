@@ -45,12 +45,13 @@ var (
 
 // App is the global app context that's passed around.
 type App struct {
-	hub    *hub.Hub
-	cfg    *hub.Config
-	tpl    *template.Template
-	tplBox *rice.Box
-	jit    bool
-	logger *log.Logger
+	hub          *hub.Hub
+	cfg          *hub.Config
+	tpl          *template.Template
+	tplBox       *rice.Box
+	jit          bool
+	logger       *log.Logger
+	localAddress string
 }
 
 func loadConfig() {
@@ -155,6 +156,13 @@ func main() {
 	// Load configuration from files.
 	loadConfig()
 
+	// Begin listening.
+	lnAddr := ko.String("app.address")
+	ln, err := net.Listen("tcp", lnAddr)
+	if err != nil {
+		logger.Fatalf("couldn't listen address %q: %v", lnAddr, err)
+	}
+
 	// Load file system boxes
 	rConf := rice.Config{LocateOrder: []rice.LocateMethod{rice.LocateWorkingDirectory, rice.LocateAppended}}
 	tplBox := rConf.MustFindBox("static/templates")
@@ -162,8 +170,9 @@ func main() {
 
 	// Initialize global app context.
 	app := &App{
-		logger: logger,
-		tplBox: tplBox,
+		logger:       logger,
+		tplBox:       tplBox,
+		localAddress: ln.Addr().String(),
 	}
 	if err := ko.Unmarshal("app", &app.cfg); err != nil {
 		logger.Fatalf("error unmarshalling 'app' config: %v", err)
@@ -246,7 +255,7 @@ func main() {
 			}
 		}
 		if len(r.GrowlEnabler) > 0 {
-			n := notify.New(room.Growl, app.cfg.RootURL, r.ID, app.logger, assetBox)
+			n := notify.New(room.Growl, "http://"+app.localAddress, r.ID, app.logger, assetBox)
 			if err = n.Init(); err != nil {
 				logger.Printf("error setting up growl notifications for the predefined room %q: %v", room.Name, err)
 				continue
@@ -300,12 +309,6 @@ func main() {
 	r.Get("/static/*", assets.ServeHTTP)
 
 	// Start the app.
-	lnAddr := ko.String("app.address")
-	ln, err := net.Listen("tcp", lnAddr)
-	if err != nil {
-		logger.Fatalf("couldn't listen address %q: %v", lnAddr, err)
-	}
-
 	if app.cfg.Tor {
 		pk, err := loadTorPK(app.cfg, store)
 		if err != nil {
