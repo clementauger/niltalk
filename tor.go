@@ -99,6 +99,8 @@ type torServer struct {
 	Handler http.Handler
 	// PrivateKey path to a pem encoded ed25519 private key
 	PrivateKey ed25519.PrivateKey
+	tor        *tor.Tor
+	onion      *tor.OnionService
 }
 
 func onionAddr(pk ed25519.PrivateKey) string {
@@ -117,7 +119,8 @@ func (ts *torServer) Serve(ln net.Listener) error {
 	if err != nil {
 		return fmt.Errorf("unable to start Tor: %v", err)
 	}
-	defer t.Close()
+	ts.tor = t
+	// defer t.Close()
 
 	// Wait at most a few minutes to publish the service
 	listenCtx, listenCancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -127,9 +130,19 @@ func (ts *torServer) Serve(ln net.Listener) error {
 	if err != nil {
 		return fmt.Errorf("unable to create onion service: %v", err)
 	}
-	defer onion.Close()
+	ts.onion = onion
+	// defer onion.Close()
 
 	// fmt.Printf("server listening at http://%v.onion\n", onion.ID)
 
 	return http.Serve(onion, ts.Handler)
+}
+func (ts *torServer) Close() error {
+	if err := ts.onion.Close(); err != nil {
+		return err
+	}
+	if err := ts.tor.Close(); err != nil {
+		return err
+	}
+	return nil
 }

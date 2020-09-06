@@ -319,6 +319,7 @@ func main() {
 			PrivateKey: pk,
 			Handler:    r,
 		}
+		defer srv.Close()
 		logger.Printf("starting hidden service on http://%v.onion", onionAddr(pk))
 		go func() {
 			if err := srv.Serve(ln); err != nil {
