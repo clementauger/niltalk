@@ -312,8 +312,100 @@ var app = new Vue({
         formatMessage(text) {
             const div = document.createElement("div");
             div.appendChild(document.createTextNode(text));
-            return div.innerHTML.replace(/\n+/ig, "<br />")
-                .replace(linkifyExpr, "<a refl='noopener noreferrer' href='$1' target='_blank'>$1</a>");
+            var html = div.innerHTML;
+            var links = html.match(linkifyExpr)
+            links.map((l)=>{
+              var match = null;
+              // lookup for some video integration.
+              //https://www.youtube.com/watch?v=kgQEvTujCoE
+              var ytb = new RegExp("^(http|https)?://([^/]+)youtube([^/]+)/watch?.*v=([^&]+)[^\\s]*","gi")
+              match = html.match(ytb)
+              if (match) {
+                ytb = new RegExp("^(http|https)?://([^/]+)youtube([^/]+)/watch?.*v=([^&]+)[^\\s]*","i")
+                match.map((m)=>{
+                  var id = "";
+                  var captured = m.match(ytb)
+                  if (captured) {
+                    id = captured[4]
+                  }
+                  if (id) {
+                    html = html.replace(m,
+                      `<iframe id="player" type="text/html"
+                      width="80%" height="360"
+                      src="http://www.youtube.com/embed/${id}?enablejsapi=1"
+                      frameborder="0" style="margin: 10%;"></iframe>`.replace(/\n+/ig," "))
+                  }
+                })
+                return
+              }
+              //https://www.dailymotion.com/video/x7vzvxe
+              var dlm = new RegExp("^(http|https)?://([^/]+)dailymotion([^/]+)/video/([^?/]+)[^\\s]*","gi")
+              match = html.match(dlm)
+              if (match) {
+                dlm = new RegExp("^(http|https)?://([^/]+)dailymotion([^/]+)/video/([^?/]+)","i")
+                match.map((m)=>{
+                  var id = "";
+                  var captured = m.match(dlm)
+                  if (captured) {
+                    id = captured[4]
+                  }
+                  if (id) {
+                    html = html.replace(m,
+                      `<iframe frameborder="0" width="80%" height="360"
+                      src="https://www.dailymotion.com/embed/video/${id}"
+                      allowfullscreen style="margin: 10%;"></iframe>`.replace(/\n+/ig," "))
+                  }
+                })
+                return
+              }
+              //https://vimeo.com/220643959
+              var vmo = new RegExp("^(http|https)?://([^/]*)vimeo([^/]+)/([^?/\\s]+)","gi")
+              match = html.match(vmo)
+              if (match) {
+                vmo = new RegExp("^(http|https)?://([^/]*)vimeo([^/]+)/([^?/\\s]+)","i")
+                match.map((m)=>{
+                  var id = "";
+                  var captured = m.match(vmo)
+                  if (captured) {
+                    id = captured[4]
+                  }
+                  if (id) {
+                    html = html.replace(m,
+                      `<iframe src="//player.vimeo.com/video/${id}?title=0&byline=0"
+                      width="80%" height="360" style="margin:10%" frameborder="0"
+                      webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>`.replace(/\n+/ig," "))
+                  }
+                })
+                return
+              }
+              //https://peertube.social/videos/watch/ad395c9b-9702-4060-ac05-4c94b64956ab
+              var ptb = new RegExp("^(http|https)?://([^/]*)peertube([^/]+)/videos/watch/([^?/\\s]+)$","gi")
+              match = html.match(ptb)
+              if (match) {
+                ptb = new RegExp("^(http|https)?://([^/]*)peertube([^/]+)/videos/watch/([^?/\\s]+)$","i")
+                match.map((m)=>{
+                  var id = "";
+                  var sdns = "";
+                  var captured = m.match(ptb)
+                  if (captured) {
+                    sdns = captured[3]
+                    id = captured[4]
+                  }
+                  if (id && sdns) {
+                    html = html.replace(m,
+                      `<iframe src="https://peertube${sdns}/videos/embed/${id}"
+                      style="margin: 10%;"
+                      width="80%" height="360"
+                      frameborder="0" sandbox="allow-same-origin allow-scripts"
+                      allowfullscreen="allowfullscreen"></iframe>`.replace(/\n+/ig," "))
+                  }
+                })
+                return
+              }
+              // otherwise it is a regular link
+              html = html.replace(l, `<a refl='noopener noreferrer' href='${l}' target='_blank'>${l}</a>`)
+            })
+            return html.replace(/\n+/ig, "<br />");
         },
 
         scrollToNewester() {
@@ -453,13 +545,6 @@ var app = new Vue({
         },
 
         onMessage(data) {
-            // If the window isn't in focus, start the "new activity" animation
-            // in the title bar.
-            if (!document.hasFocus()) {
-                this.newActivity = true;
-                this.beep();
-            }
-
             this.typingPeers.delete(data.data.peer_id);
             this.messages.push({
                 type: data.type,
@@ -472,6 +557,12 @@ var app = new Vue({
                 }
             });
             this.scrollToNewester();
+            // If the window isn't in focus, start the "new activity" animation
+            // in the title bar.
+            if (!document.hasFocus()) {
+                this.newActivity = true;
+                this.beep();
+            }
         },
 
         onUpload(data) {
