@@ -281,7 +281,7 @@ var app = new Vue({
             const b = document.querySelector("#beep");
             b.pause();
             b.load();
-            b.play();
+            b.play().catch((e)=>{});
         },
 
         deNotify() {
