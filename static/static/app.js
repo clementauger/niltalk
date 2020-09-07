@@ -47,6 +47,8 @@ var commands = {
 // throw it at startup, though you will need an ssl certificate.
 Notify.requestPermission(null, null);
 
+var converter = new showdown.Converter();
+
 var app = new Vue({
     el: "#app",
     delimiters: ["{(", ")}"],
@@ -412,7 +414,8 @@ var app = new Vue({
               // otherwise it is a regular link
               html = html.replace(l, `<a refl='noopener noreferrer' href='${l}' target='_blank'>${l}</a>`)
             })
-            return html.replace(/\n+/ig, "<br />");
+            return converter.makeHtml(html)
+            // return html.replace(/\n+/ig, "<br />");
         },
 
         scrollToNewester() {
@@ -658,23 +661,22 @@ var app = new Vue({
         },
 
         onWhisper(data) {
-            var msg = data.data.data.msg;
-            if (msg) {
-              this.messages.push({
-                type: Client.MsgType["whisper"],
-                message: msg,
-                timestamp: data.timestamp,
-                peer: {
-                    id: data.data.peer_id,
-                    handle: data.data.peer_handle,
-                    avatar: this.hashColor(data.data.peer_id)
-                }
-              });
-              if (!document.hasFocus()) {
-                this.scrollToNewester();
-                this.newActivity = true;
-                this.beep();
+          var msg = data.data.data.msg;
+          if (msg) {
+            this.messages.push({
+              type: Client.MsgType["whisper"],
+              message: msg,
+              timestamp: data.timestamp,
+              peer: {
+                  id: data.data.peer_id,
+                  handle: data.data.peer_handle,
+                  avatar: this.hashColor(data.data.peer_id)
               }
+            });
+            if (!document.hasFocus()) {
+              this.scrollToNewester();
+              this.newActivity = true;
+              this.beep();
             }
           }
         },
