@@ -55,7 +55,7 @@ storage = "redis"
     message="{{.UserName}} is calling you. Open {{.URL}}"
     title="Niltalk notification"
     sound="beep.mp3"
-    motd="Welcome message of the day"
+    motd="Welcome message of the day, type /help to get commands help"
     [[rooms.local.users]]
     name="me1"
     password="azerty"
