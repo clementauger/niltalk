@@ -18,6 +18,7 @@ var Client = new function () {
 		"handle": "handle",
 		"growl": "growl",
 		"ping": "ping",
+		"whisper": "whisper",
 		"motd": "motd",
 		"help": "help"
 	};

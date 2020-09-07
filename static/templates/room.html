@@ -75,6 +75,16 @@
 						</div>
 						<div class="content" v-html="formatMessage(m.message)"></div>
 					</div>
+					<div class="wrap whisper" v-else-if="m.type === Client.MsgType['whisper']">
+						<div class="meta">
+							<span class="peer">
+								<span class="avatar" :style="{'background-color': m.peer.avatar}"></span>
+								<span class="handle">{( m.peer.handle )} whispers</span>
+							</span>
+							<span class="timestamp" :title="m.timestamp">{( formatDate(m.timestamp) )}</span>
+						</div>
+						<div class="content" v-html="formatMessage(m.message)"></div>
+					</div>
 					<div class="wrap motd" v-else-if="m.type === Client.MsgType['motd']">
 						{( m.message )}
 					</div>
@@ -202,12 +212,6 @@
 <!-- <div class="reconnect">
 		<h1>Disconnected.</h1>
 	</div> -->
-
-{{if gt (len .Data.Room.GrowlEnabler) 0 }}
-<script>
-	window._growl = {{.Data.Room.GrowlEnabler}};
-</script>
-{{end}}
 
 {{ template "footer" . }}
 {{end}}
