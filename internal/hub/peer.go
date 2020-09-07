@@ -199,7 +199,7 @@ func (p *Peer) processMessage(b []byte) {
 
 		p.room.HandleGrowlNotifications(from, to, msg)
 
-	case TypePing:
+	case TypePing, TypeWhisper:
 		data, ok := m.Data.(map[string]interface{})
 		if !ok {
 			// TODO: Respond

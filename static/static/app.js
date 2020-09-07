@@ -44,6 +44,9 @@ var commands = {
   },
 }
 
+// throw it at startup, though you will need an ssl certificate.
+Notify.requestPermission(null, null);
+
 var app = new Vue({
     el: "#app",
     delimiters: ["{(", ")}"],
@@ -235,6 +238,10 @@ var app = new Vue({
             Client.sendMessage(Client.MsgType["ping"], {to:matches[2], msg:matches[3],from: this.self.handle});
 
           }else if (commandName=="whisper"){
+            var re = new RegExp("^(/"+commandName+")\\s+([^\\s]+)(\\s+.*)?");
+            var matches = msg.match(re);
+            Client.sendMessage(Client.MsgType["whisper"], {to:matches[2], msg:matches[3],from: this.self.handle});
+
           }
         },
 
@@ -621,9 +628,18 @@ var app = new Vue({
 
         onPing(data) {
           if (!document.hasFocus()) {
-            var msg = data.data.data.msg;
             var from = data.data.data.from;
-            if (msg) {
+            var msg = data.data.data.msg;
+            if(!msg){return}
+
+            if (!Notify.needsPermission) {
+              var title = from+" pings you!";
+              new Notify(title, {
+                body: msg,
+                tag: $.uniqueId(),
+                timeout: 4
+              }).show();
+            }else{
               this.messages.push({
                 type: Client.MsgType["ping"],
                 message: msg,
@@ -637,6 +653,28 @@ var app = new Vue({
               this.scrollToNewester();
               this.newActivity = true;
               this.beep();
+            }
+          }
+        },
+
+        onWhisper(data) {
+            var msg = data.data.data.msg;
+            if (msg) {
+              this.messages.push({
+                type: Client.MsgType["whisper"],
+                message: msg,
+                timestamp: data.timestamp,
+                peer: {
+                    id: data.data.peer_id,
+                    handle: data.data.peer_handle,
+                    avatar: this.hashColor(data.data.peer_id)
+                }
+              });
+              if (!document.hasFocus()) {
+                this.scrollToNewester();
+                this.newActivity = true;
+                this.beep();
+              }
             }
           }
         },
@@ -660,6 +698,7 @@ var app = new Vue({
             Client.on(Client.MsgType["upload"], this.onUpload);
             Client.on(Client.MsgType["typing"], this.onTyping);
             Client.on(Client.MsgType["ping"], this.onPing);
+            Client.on(Client.MsgType["whisper"], this.onWhisper);
         },
 
         initTimers() {
