@@ -122,6 +122,20 @@ func (r *Room) Login(roomPwd, handle, handlePwd string, roomAge time.Duration) (
 		}
 	}
 
+	var connected bool
+	r.op <- func() {
+		for p := range r.peers {
+			if p.Handle == handle {
+				connected = true
+				break
+			}
+		}
+	}
+
+	if connected {
+		return "", ErrAlreadyConnected
+	}
+
 	// Register a new session for the peer in the DB.
 	sessID, err := GenerateGUID(32)
 	if err != nil {
@@ -141,6 +155,7 @@ func (r *Room) Login(roomPwd, handle, handlePwd string, roomAge time.Duration) (
 var (
 	ErrInvalidRoomPassword = fmt.Errorf("invalid room password")
 	ErrInvalidUserPassword = fmt.Errorf("invalid user password")
+	ErrAlreadyConnected    = fmt.Errorf("user is already connected")
 	ErrInvalidToken        = fmt.Errorf("invalid autologin token")
 )
 
@@ -180,6 +195,20 @@ func (r *Room) LoginWithToken(token string, roomAge time.Duration) (string, erro
 
 	if len(handle) < 1 {
 		return "", ErrInvalidToken
+	}
+
+	var connected bool
+	r.op <- func() {
+		for p := range r.peers {
+			if p.Handle == handle {
+				connected = true
+				break
+			}
+		}
+	}
+
+	if connected {
+		return "", ErrAlreadyConnected
 	}
 
 	// Register a new session for the peer in the DB.
