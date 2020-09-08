@@ -50,7 +50,7 @@
 				@dragenter.prevent.capture="dragEnter"
 				@dragleave.prevent.self="dragLeave"
 				v-bind:class="{ dragover: isDraggingOver }">
-			<ul class="no peers">
+			<ul class="no">
 				<li v-for="m in messages" class="message">
 					<div class="wrap" v-if="m.type === Client.MsgType['message']">
 						<div class="meta">
