@@ -339,10 +339,11 @@ var app = new Vue({
                   }
                   if (id) {
                     html = html.replace(m,
-                      `<iframe id="player" type="text/html"
-                      width="80%" height="360"
+                      `<iframe type="text/html"
+                      class="video"
+                      webkitallowfullscreen mozallowfullscreen allowfullscreen
                       src="http://www.youtube.com/embed/${id}?enablejsapi=1"
-                      frameborder="0" style="margin: 10%;"></iframe>`.replace(/\n+/ig," "))
+                      ></iframe>`.replace(/\n+/ig," "))
                   }
                 })
                 return
@@ -360,9 +361,10 @@ var app = new Vue({
                   }
                   if (id) {
                     html = html.replace(m,
-                      `<iframe frameborder="0" width="80%" height="360"
-                      src="https://www.dailymotion.com/embed/video/${id}"
-                      allowfullscreen style="margin: 10%;"></iframe>`.replace(/\n+/ig," "))
+                      `<iframe src="https://www.dailymotion.com/embed/video/${id}"
+                        class="video"
+                        webkitallowfullscreen mozallowfullscreen allowfullscreen
+                        ></iframe>`.replace(/\n+/ig," "))
                   }
                 })
                 return
@@ -381,8 +383,9 @@ var app = new Vue({
                   if (id) {
                     html = html.replace(m,
                       `<iframe src="//player.vimeo.com/video/${id}?title=0&byline=0"
-                      width="80%" height="360" style="margin:10%" frameborder="0"
-                      webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>`.replace(/\n+/ig," "))
+                        class="video"
+                        webkitallowfullscreen mozallowfullscreen allowfullscreen
+                        ></iframe>`.replace(/\n+/ig," "))
                   }
                 })
                 return
@@ -403,10 +406,10 @@ var app = new Vue({
                   if (id && sdns) {
                     html = html.replace(m,
                       `<iframe src="https://peertube${sdns}/videos/embed/${id}"
-                      style="margin: 10%;"
-                      width="80%" height="360"
-                      frameborder="0" sandbox="allow-same-origin allow-scripts"
-                      allowfullscreen="allowfullscreen"></iframe>`.replace(/\n+/ig," "))
+                        class="video"
+                        sandbox="allow-same-origin allow-scripts"
+                        webkitallowfullscreen mozallowfullscreen allowfullscreen
+                        ></iframe>`.replace(/\n+/ig," "))
                   }
                 })
                 return
@@ -791,6 +794,25 @@ var app = new Vue({
             Client.sendMessage(Client.MsgType["upload"], {uid:uid,err:err});
             this.notify(err, notifType.error);
           });
+        },
+
+        onResize(event) {
+          var header = document.querySelector(".header");
+          var style = getComputedStyle(header)
+          var headerHeight = parseInt(style.marginTop) + parseInt(style.marginBottom) + header.offsetHeight;
+          var fc = document.querySelector(".form-chat")
+          var c = document.querySelector(".chat .messages")
+          var vph = window.innerHeight;
+          var h = vph-(fc.offsetHeight + headerHeight);
+          if (h<0) { h = 0;}
+          c.style.height = h + "px";
         }
+    },
+    mounted() {
+      window.addEventListener('resize', this.onResize)
+      this.onResize();
+    },
+    beforeDestroy() {
+      window.removeEventListener('resize', this.onResize)
     }
 });

@@ -218,12 +218,14 @@ form .help {
 
 /* Layout */
 #app {
-  min-height: 400px;
+  /* min-height: 400px; */
 }
 .container {
   min-width: 320px;
-  max-width: 900px;
-  margin: 0 auto;
+  /* max-width: 900px; */
+  /* margin: 0 auto; */
+  width: 96%;
+  margin: 0 2%;
 }
 .header {
   margin: 30px 0 30px 0;
@@ -263,8 +265,8 @@ form .help {
   justify-content: space-between;
 }
 .chat .messages {
-  width: 70%;
-  height: 70vh;
+  width: 78%;
+  /* height: 70vh; */
   overflow-y: auto;
   padding-right: 15px;
 }
@@ -283,6 +285,12 @@ form .help {
 .chat .messages .message {
   border-bottom: 1px solid #eee;
   padding: 15px 0;
+}
+.chat .messages .message iframe.video {
+  height:360px;
+  width: 80%;
+  margin: 0 10%;
+  border:0;
 }
 .chat .messages .message .upload {
   max-width: 50%;
@@ -344,7 +352,7 @@ form .help {
 /* Peer list sidebar */
 .chat .sidebar {
   background: #fff;
-  width: 25%;
+  width: 20%;
 }
 .chat .peers {
   max-height: 95%;
