@@ -1,5 +1,6 @@
 [Unit]
 Description=Niltalk service.
+After=default.target
 
 [Service]
 Type=simple
@@ -10,4 +11,4 @@ ExecStart=/path/to/niltalk
 WorkingDirectory=/path/to/niltalk/wordkingdir
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
