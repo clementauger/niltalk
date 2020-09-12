@@ -43,6 +43,7 @@ storage = "redis"
 
 [tor]
 enabled=true
+ssl=true
 # Path to the tor private key path, leave it empty to store your key within the store.
 privatekey=""
 

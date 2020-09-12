@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 
 type torCfg struct {
 	Enabled    bool   `koan:"enabled"`
+	SSL        bool   `koan:"ssl"`
 	PrivateKey string `koan:"privatekey"`
 }
 
@@ -105,6 +107,9 @@ type torServer struct {
 	PrivateKey ed25519.PrivateKey
 	tor        *tor.Tor
 	onion      *tor.OnionService
+
+	TLSConfig    *tls.Config
+	TLSNextProto map[string]func(*http.Server, *tls.Conn, http.Handler)
 }
 
 func onionAddr(pk ed25519.PrivateKey) string {
@@ -130,16 +135,33 @@ func (ts *torServer) Serve(ln net.Listener) error {
 	listenCtx, listenCancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer listenCancel()
 	// Create a v3 onion service to listen on any port but show as 80
-	onion, err := t.Listen(listenCtx, &tor.ListenConf{LocalListener: ln, Key: ts.PrivateKey, Version3: true, RemotePorts: []int{80}})
+	onion, err := t.Listen(listenCtx, &tor.ListenConf{
+		LocalListener: ln,
+		Key:           ts.PrivateKey,
+		Version3:      true,
+		RemotePorts:   []int{80, 443},
+	})
 	if err != nil {
 		return fmt.Errorf("unable to create onion service: %v", err)
 	}
 	ts.onion = onion
-	// defer onion.Close()
 
-	// fmt.Printf("server listening at http://%v.onion\n", onion.ID)
+	errc := make(chan error)
+	if ts.TLSConfig != nil {
+		x := http.Server{
+			Handler:      ts.Handler,
+			TLSConfig:    ts.TLSConfig,
+			TLSNextProto: ts.TLSNextProto,
+		}
+		go func() {
+			errc <- x.ServeTLS(ts.onion, "", "")
+		}()
+	}
 
-	return http.Serve(onion, ts.Handler)
+	go func() {
+		errc <- http.Serve(ts.onion, ts.Handler)
+	}()
+	return <-errc
 }
 func (ts *torServer) Close() error {
 	if err := ts.onion.Close(); err != nil {

@@ -327,7 +327,16 @@ func main() {
 			Handler:    r,
 		}
 		defer srv.Close()
-		logger.Printf("starting hidden service on http://%v.onion", onionAddr(pk))
+
+		onionAddr := onionAddr(pk) + ".onion"
+
+		if torCfg.SSL {
+			srv.TLSConfig = tlsConfig(getCertificate(onionAddr))
+			srv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
+			logger.Printf("starting hidden service on https://%v", onionAddr)
+		} else {
+			logger.Printf("starting hidden service on http://%v", onionAddr)
+		}
 		go func() {
 			if err := srv.Serve(ln); err != nil {
 				logger.Fatalf("couldn't serve: %v", err)
