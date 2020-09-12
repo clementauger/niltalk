@@ -4,6 +4,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"html/template"
@@ -33,6 +34,7 @@ import (
 	"github.com/knadh/niltalk/store/mem"
 	"github.com/knadh/niltalk/store/redis"
 	flag "github.com/spf13/pflag"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 var (
@@ -226,8 +228,13 @@ func main() {
 		logger.Fatal("app.storage must be one of redis|memory|fs")
 	}
 
+	var torCfg torCfg
+	if err := ko.Unmarshal("tor", &torCfg); err != nil {
+		logger.Fatalf("error unmarshalling 'tor' config: %v", err)
+	}
+
 	if ko.Bool("onion") {
-		pk, err := loadTorPK(app.cfg, store)
+		pk, err := loadTorPK(torCfg, store)
 		if err != nil {
 			logger.Fatalf("could not read or write the private key: %v", err)
 		}
@@ -309,8 +316,8 @@ func main() {
 	r.Get("/static/*", assets.ServeHTTP)
 
 	// Start the app.
-	if app.cfg.Tor {
-		pk, err := loadTorPK(app.cfg, store)
+	if torCfg.Enabled {
+		pk, err := loadTorPK(torCfg, store)
 		if err != nil {
 			logger.Fatalf("could not read or write the private key: %v", err)
 		}
@@ -331,12 +338,76 @@ func main() {
 	srv := http.Server{
 		Handler: r,
 	}
+	var sslCfg sslCfg
+	if err := ko.Unmarshal("ssl", &sslCfg); err != nil {
+		logger.Fatalf("error unmarshalling 'ssl' config: %v", err)
+	}
+
+	sslAddr := ":443"
+	if sslCfg.Address != "" {
+		sslAddr = sslCfg.Address
+	}
+	_, sslPort, err := net.SplitHostPort(sslAddr)
+	if err != nil {
+		logger.Fatalf("couldn't parse address %q: %v", sslAddr, err)
+	}
+
+	var certManager autocert.Manager
+	if sslCfg.Enabled {
+		if sslCfg.Kind == "letsencrypt" {
+			certManager = autocert.Manager{
+				Prompt:     autocert.AcceptTOS,
+				HostPolicy: autocert.HostWhitelist(sslCfg.Domains...),
+				Cache:      autocert.DirCache("certs"),
+			}
+			srv.Handler = certManager.HTTPHandler(handleHTTPRedirect(sslPort, srv.Handler))
+
+		} else {
+			srv.Handler = handleHTTPRedirect(sslPort, srv.Handler)
+		}
+	}
+
 	logger.Printf("starting server on http://%v", ln.Addr().String())
 	go func() {
 		if err := srv.Serve(ln); err != nil {
 			logger.Fatalf("couldn't serve: %v", err)
 		}
 	}()
+
+	if sslCfg.Enabled {
+		sln, err := net.Listen("tcp", sslAddr)
+		if err != nil {
+			logger.Fatalf("couldn't listen address %q: %v", sslAddr, err)
+		}
+		ssrv := http.Server{
+			Handler: r,
+		}
+		if sslCfg.Kind == "auto" {
+			ssrv.TLSConfig = tlsConfig(getCertificate(sslCfg.Domains))
+			ssrv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
+
+		} else if sslCfg.Kind == "files" {
+			ssrv.TLSConfig = tlsConfig(nil)
+			ssrv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
+
+		} else if sslCfg.Kind == "letsencrypt" {
+			tlsConfig := certManager.TLSConfig()
+			tlsConfig.GetCertificate = certManager.GetCertificate
+			srv.TLSConfig = tlsConfig
+		}
+		logger.Printf("starting server on https://%v", sln.Addr().String())
+		go func() {
+			var err error
+			if sslCfg.Kind == "files" {
+				err = ssrv.ServeTLS(sln, sslCfg.Certificate, sslCfg.PrivateKey)
+			} else {
+				err = ssrv.ServeTLS(sln, "", "")
+			}
+			if err != nil {
+				logger.Fatalf("couldn't tls serve: %v", err)
+			}
+		}()
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)

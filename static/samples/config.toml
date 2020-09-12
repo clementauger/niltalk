@@ -46,6 +46,18 @@ enabled=true
 # Path to the tor private key path, leave it empty to store your key within the store.
 privatekey=""
 
+[ssl]
+address=":443" # the listen address of the ssl/tls listener
+enabled=true
+# kind of ssl certificate sources, one of files|letsencrypt|auto
+kind="auto"
+# path to the private key file of your certificate, only for kind=files
+privatekey=""
+# path to the certificate file, only for kind=files
+certificate=""
+# the list of domains to get certificate for, only for kind=letsencrypt
+domains= [ "yourdomain.com", "www.yourdomain.com" ]
+
 [rooms]
   [rooms.local]
   id="local"
