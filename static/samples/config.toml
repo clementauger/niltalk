@@ -2,11 +2,6 @@
 # Address to listen.
 address = "0.0.0.0:9000"
 
-# Enable tor.
-tor=true
-# Path to the tor privte key path, leave it empty to store your key within your store.
-privatekey=""
-
 # No trailing slashes.
 root_url = "http://localhost:9000"
 
@@ -45,6 +40,11 @@ session_cookie = "niltoken"
 
 # Storage kind, one of redis|memory|fs.
 storage = "redis"
+
+[tor]
+enabled=true
+# Path to the tor private key path, leave it empty to store your key within the store.
+privatekey=""
 
 [rooms]
   [rooms.local]

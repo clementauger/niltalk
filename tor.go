@@ -17,11 +17,15 @@ import (
 	"github.com/cretz/bine/tor"
 	"github.com/cretz/bine/torutil"
 	tued25519 "github.com/cretz/bine/torutil/ed25519"
-	"github.com/knadh/niltalk/internal/hub"
 	"github.com/knadh/niltalk/store"
 )
 
-func loadTorPK(cfg *hub.Config, store store.Store) (pk ed25519.PrivateKey, err error) {
+type torCfg struct {
+	Enabled    bool   `koan:"enabled"`
+	PrivateKey string `koan:"privatekey"`
+}
+
+func loadTorPK(cfg torCfg, store store.Store) (pk ed25519.PrivateKey, err error) {
 	if cfg.PrivateKey != "" {
 		return getOrCreatePKFile(cfg.PrivateKey)
 	}

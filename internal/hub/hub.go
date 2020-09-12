@@ -55,9 +55,6 @@ type Config struct {
 	Storage           string        `koanf:"storage"`
 
 	Rooms map[string]PredefinedRoom `koanf:"rooms"`
-
-	Tor        bool   `koanf:"tor"`
-	PrivateKey string `koanf:"privatekey"`
 }
 
 // PredefinedRoom are static rooms declared in the configuration file.
