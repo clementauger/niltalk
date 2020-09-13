@@ -334,9 +334,8 @@ func main() {
 			srv.TLSConfig = tlsConfig(getCertificate(onionAddr))
 			srv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
 			logger.Printf("starting hidden service on https://%v", onionAddr)
-		} else {
-			logger.Printf("starting hidden service on http://%v", onionAddr)
 		}
+		logger.Printf("starting hidden service on http://%v", onionAddr)
 		go func() {
 			if err := srv.Serve(ln); err != nil {
 				logger.Fatalf("couldn't serve: %v", err)
@@ -364,10 +363,29 @@ func main() {
 	var certManager autocert.Manager
 	if sslCfg.Enabled {
 		if sslCfg.Kind == "letsencrypt" {
+			var sslStorage autocert.Cache
+			if sslCfg.Storage == "disk" {
+				if sslCfg.Path == "" {
+					sslCfg.Path = "certs"
+				}
+				sslStorage = autocert.DirCache(sslCfg.Path)
+			} else if sslCfg.Storage == "store" {
+				sslStorage = sslStore{prefix: "SSL:", store: store}
+			} else {
+				if app.cfg.Storage == "memory" {
+					if sslCfg.Path == "" {
+						sslCfg.Path = "certs"
+					}
+					sslStorage = autocert.DirCache(sslCfg.Path)
+				} else {
+					sslStorage = sslStore{prefix: "SSL:", store: store}
+				}
+			}
 			certManager = autocert.Manager{
 				Prompt:     autocert.AcceptTOS,
 				HostPolicy: autocert.HostWhitelist(sslCfg.Domains...),
-				Cache:      autocert.DirCache("certs"),
+				Cache:      sslStorage,
+				Email:      sslCfg.Email,
 			}
 			srv.Handler = certManager.HTTPHandler(handleHTTPRedirect(sslPort, srv.Handler))
 

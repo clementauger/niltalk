@@ -306,3 +306,12 @@ func (m *File) Set(key string, data []byte) error {
 	m.dirty = true
 	return nil
 }
+
+// Delete a value.
+func (m *File) Delete(key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.data, key)
+	m.dirty = true
+	return nil
+}

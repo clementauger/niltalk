@@ -21,6 +21,7 @@ type Store interface {
 
 	Get(key string) ([]byte, error)
 	Set(key string, value []byte) error
+	Delete(key string) error
 }
 
 // Room represents the properties of a room in the store.

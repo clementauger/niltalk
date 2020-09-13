@@ -216,3 +216,11 @@ func (r *Redis) Set(key string, data []byte) error {
 	_, err := c.Do("SET", key, data)
 	return err
 }
+
+// Delete a value.
+func (r *Redis) Delete(key string) error {
+	c := r.pool.Get()
+	defer c.Close()
+	_, err := c.Do("DEL", key)
+	return err
+}

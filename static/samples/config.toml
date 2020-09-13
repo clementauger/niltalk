@@ -43,7 +43,6 @@ storage = "redis"
 
 [tor]
 enabled=true
-ssl=true
 # Path to the tor private key path, leave it empty to store your key within the store.
 privatekey=""
 
@@ -58,6 +57,13 @@ privatekey=""
 certificate=""
 # the list of domains to get certificate for, only for kind=letsencrypt
 domains= [ "yourdomain.com", "www.yourdomain.com" ]
+# your email, only for kind=letsencrypt
+email= "e@mail.com"
+# the kind of storage to use, storage=disk|store, if kind=store it uses the app storage,
+# if kind=files, it saves certificates under path option
+storage=""
+# path to store certificates on disk, only when kind=letsencrypt
+path=""
 
 [rooms]
   [rooms.local]

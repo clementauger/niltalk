@@ -230,3 +230,11 @@ func (m *InMemory) Set(key string, data []byte) error {
 	copy(m.data[key], data)
 	return nil
 }
+
+// Delete a value.
+func (m *InMemory) Delete(key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.data, key)
+	return nil
+}

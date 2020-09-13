@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -11,16 +12,20 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/knadh/niltalk/store"
 	"github.com/pkg/errors"
 )
 
 type sslCfg struct {
 	Enabled     bool     `koanf:"enabled"`
+	Email       string   `koanf:"email"`
 	Address     string   `koanf:"address"`
 	Kind        string   `koanf:"kind"`
 	PrivateKey  string   `koanf:"privatekey"`
 	Certificate string   `koanf:"certificate"`
 	Domains     []string `koanf:"domains"`
+	Storage     string   `koanf:"storage"`
+	Path        string   `koanf:"path"`
 }
 
 func tlsConfig(getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error)) *tls.Config {
@@ -57,6 +62,22 @@ func handleHTTPRedirect(sslPort string, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// sslStore implements autocert.Cache and wraps an internal.Store
+type sslStore struct {
+	prefix string
+	store  store.Store
+}
+
+func (s sslStore) Get(ctx context.Context, key string) ([]byte, error) {
+	return s.store.Get(key)
+}
+func (s sslStore) Put(ctx context.Context, key string, data []byte) error {
+	return s.store.Set(key, data)
+}
+func (s sslStore) Delete(ctx context.Context, key string) error {
+	return s.store.Delete(key)
 }
 
 // automatic ssl certificate generator
