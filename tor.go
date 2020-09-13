@@ -164,11 +164,15 @@ func (ts *torServer) Serve(ln net.Listener) error {
 	return <-errc
 }
 func (ts *torServer) Close() error {
-	if err := ts.onion.Close(); err != nil {
-		return err
+	if ts.onion != nil {
+		if err := ts.onion.Close(); err != nil {
+			return err
+		}
 	}
-	if err := ts.tor.Close(); err != nil {
-		return err
+	if ts.tor != nil {
+		if err := ts.tor.Close(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
