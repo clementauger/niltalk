@@ -71,13 +71,13 @@ type sslStore struct {
 }
 
 func (s sslStore) Get(ctx context.Context, key string) ([]byte, error) {
-	return s.store.Get(key)
+	return s.store.Get(s.prefix + key)
 }
 func (s sslStore) Put(ctx context.Context, key string, data []byte) error {
-	return s.store.Set(key, data)
+	return s.store.Set(s.prefix+key, data)
 }
 func (s sslStore) Delete(ctx context.Context, key string) error {
-	return s.store.Delete(key)
+	return s.store.Delete(s.prefix + key)
 }
 
 // automatic ssl certificate generator
