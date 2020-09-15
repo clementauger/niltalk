@@ -119,6 +119,7 @@ prefix_session = "NIL:SESS:ROOM:%s"
 # Uploaded files are stored in memory exclusively.
 # A maximum amount of memory is configurable, when this limit is reached,
 # oldest files are deleted until enough space is available.
+# Rate limit options are applied per room.
 [upload]
 # Max memory allowed for files storing.
 max-memory="32MB"
