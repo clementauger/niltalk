@@ -25,6 +25,7 @@ type torCfg struct {
 	Enabled    bool   `koan:"enabled"`
 	SSL        bool   `koan:"ssl"`
 	PrivateKey string `koan:"privatekey"`
+	Torrc      string `koan:"torrc"`
 }
 
 func loadTorPK(cfg torCfg, store store.Store) (pk ed25519.PrivateKey, err error) {
@@ -34,74 +35,72 @@ func loadTorPK(cfg torCfg, store store.Store) (pk ed25519.PrivateKey, err error)
 	return getOrCreatePK(store)
 }
 
-func getOrCreatePK(store store.Store) (privateKey ed25519.PrivateKey, err error) {
-	key := "onionkey"
-	d, err := store.Get(key)
-	if len(d) == 0 || err != nil {
-		_, privateKey, err = ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, err
-		}
-		var x509Encoded []byte
-		x509Encoded, err = x509.MarshalPKCS8PrivateKey(privateKey)
-		if err != nil {
-			return nil, err
-		}
-		pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "ED25519 PRIVATE KEY", Bytes: x509Encoded})
-		err = store.Set(key, pemEncoded)
-	} else {
-		block, _ := pem.Decode(d)
-		x509Encoded := block.Bytes
-		var tPk interface{}
-		tPk, err = x509.ParsePKCS8PrivateKey(x509Encoded)
-		if err != nil {
-			return nil, err
-		}
-		if x, ok := tPk.(ed25519.PrivateKey); ok {
-			privateKey = x
-		} else {
-			err = fmt.Errorf("invalid key type %T wanted ed25519.PrivateKey", tPk)
-		}
+func pemEncodeKey(privateKey ed25519.PrivateKey) ([]byte, error) {
+	x509Encoded, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return nil, err
 	}
-	return privateKey, err
+	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "ED25519 PRIVATE KEY", Bytes: x509Encoded})
+
+	return pemEncoded, nil
 }
 
-func getOrCreatePKFile(fpath string) (privateKey ed25519.PrivateKey, err error) {
-	if _, err := os.Stat(fpath); os.IsNotExist(err) {
-		_, privateKey, err = ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, err
-		}
-		var x509Encoded []byte
-		x509Encoded, err = x509.MarshalPKCS8PrivateKey(privateKey)
-		if err != nil {
-			return nil, err
-		}
-		pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "ED25519 PRIVATE KEY", Bytes: x509Encoded})
-		ioutil.WriteFile(fpath, pemEncoded, os.ModePerm)
-	} else {
-		var d []byte
-		d, err = ioutil.ReadFile(fpath)
-		if err != nil {
-			return nil, err
-		}
-		block, _ := pem.Decode(d)
-		x509Encoded := block.Bytes
-		var tPk interface{}
-		tPk, err = x509.ParsePKCS8PrivateKey(x509Encoded)
-		if err != nil {
-			return nil, err
-		}
-		if x, ok := tPk.(ed25519.PrivateKey); ok {
-			privateKey = x
-		} else {
-			return nil, fmt.Errorf("invalid key type %T wanted ed25519.PrivateKey", tPk)
-		}
+func pemDecodeKey(d []byte) (ed25519.PrivateKey, error) {
+	block, _ := pem.Decode(d)
+	x509Encoded := block.Bytes
+	tPk, err := x509.ParsePKCS8PrivateKey(x509Encoded)
+	if err != nil {
+		return nil, err
+	}
+	privateKey, ok := tPk.(ed25519.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("invalid key type %T wanted ed25519.PrivateKey", tPk)
 	}
 	return privateKey, nil
 }
 
+func getOrCreatePK(store store.Store) (ed25519.PrivateKey, error) {
+	key := "onionkey"
+	d, err := store.Get(key)
+	if len(d) == 0 || err != nil {
+		_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		pemEncoded, err := pemEncodeKey(privateKey)
+		if err != nil {
+			return nil, err
+		}
+		err = store.Set(key, pemEncoded)
+		return privateKey, err
+	}
+	privateKey, err := pemDecodeKey(d)
+	return privateKey, err
+}
+
+func getOrCreatePKFile(fpath string) (ed25519.PrivateKey, error) {
+	if _, err := os.Stat(fpath); os.IsNotExist(err) {
+		_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		pemEncoded, err := pemEncodeKey(privateKey)
+		if err != nil {
+			return nil, err
+		}
+		err = ioutil.WriteFile(fpath, pemEncoded, os.ModePerm)
+		return privateKey, err
+	}
+	d, err := ioutil.ReadFile(fpath)
+	if err != nil {
+		return nil, err
+	}
+	privateKey, err := pemDecodeKey(d)
+	return privateKey, err
+}
+
 type torServer struct {
+	Torrc   string
 	Handler http.Handler
 	// PrivateKey path to a pem encoded ed25519 private key
 	PrivateKey ed25519.PrivateKey
@@ -124,7 +123,12 @@ func (ts *torServer) Serve(ln net.Listener) error {
 
 	// Start tor with default config (can set start conf's DebugWriter to os.Stdout for debug logs)
 	// fmt.Println("Starting and registering onion service, please wait a couple of minutes...")
-	t, err := tor.Start(nil, &tor.StartConf{TempDataDirBase: d, ProcessCreator: embedded.NewCreator(), NoHush: true})
+	t, err := tor.Start(nil, &tor.StartConf{
+		TorrcFile:       ts.Torrc,
+		TempDataDirBase: d,
+		ProcessCreator:  embedded.NewCreator(),
+		NoHush:          true,
+	})
 	if err != nil {
 		return fmt.Errorf("unable to start Tor: %v", err)
 	}
