@@ -451,6 +451,7 @@ var app = new Vue({
                 }
                 if (this.$refs["form-message"]) {
                     this.$refs["form-message"].focus();
+                    this.onResize();
                 }
             }.bind(this));
         },
@@ -608,18 +609,26 @@ var app = new Vue({
             var found = false;
             this.messages.map((m) => {
               if (m.uid===d.uid){
-                m.res=d.res.data;
+                if(d.res) {
+                  m.res=d.res.data;
+                }
+                m.files = m.files || [];
                 m.err=d.err;
                 m.type=data.type;
                 found=true;
               }
             });
             if(!found) {
+              var res = {};
+              if (d.res) {
+                res = d.res.data;
+              }
               this.messages.push({
                 type: data.type,
                 timestamp: data.timestamp,
                 uid: d.uid,
-                res: d.res.data,
+                res: res,
+                files: [],
                 err: d.err,
                 peer: {
                   id: data.data.peer_id,
@@ -676,8 +685,8 @@ var app = new Vue({
                   avatar: this.hashColor(data.data.peer_id)
               }
             });
+            this.scrollToNewester();
             if (!document.hasFocus()) {
-              this.scrollToNewester();
               this.newActivity = true;
               this.beep();
             }
@@ -791,26 +800,29 @@ var app = new Vue({
             }
           })
           .catch(err => {
-            Client.sendMessage(Client.MsgType["upload"], {uid:uid,err:err});
+            Client.sendMessage(Client.MsgType["upload"], {uid:uid,err:err.message});
             this.notify(err, notifType.error);
           });
         },
 
         onResize(event) {
-          var header = document.querySelector(".header");
-          var style = getComputedStyle(header)
-          var headerHeight = parseInt(style.marginTop) + parseInt(style.marginBottom) + header.offsetHeight;
-          var fc = document.querySelector(".form-chat")
-          var c = document.querySelector(".chat .messages")
-          var vph = window.innerHeight;
-          var h = vph-(fc.offsetHeight + headerHeight);
-          if (h<0) { h = 0;}
-          c.style.height = h + "px";
+          window.requestAnimationFrame(()=>{
+            var header = document.querySelector(".header");
+            var style = getComputedStyle(header)
+            var headerHeight = parseInt(style.marginTop) + parseInt(style.marginBottom) + header.offsetHeight;
+            var fc = document.querySelector(".form-chat")
+            var c = document.querySelector(".chat .messages")
+            if(fc && c) {
+              var vph = window.innerHeight;
+              var h = vph-(fc.offsetHeight + headerHeight);
+              if (h<0) { h = 0;}
+              c.style.height = h + "px";
+            }
+          });
         }
     },
     mounted() {
       window.addEventListener('resize', this.onResize)
-      this.onResize();
     },
     beforeDestroy() {
       window.removeEventListener('resize', this.onResize)

@@ -303,7 +303,7 @@ form .help {
 .chat .messages .message .uploading {
   text-align: center;
 }
-.chat .messages .message .uploading .red-err,
+.chat .messages .message .upload .red-err,
 .chat .messages .message .uploading .spinner {
   width: 50px;
   margin: auto;

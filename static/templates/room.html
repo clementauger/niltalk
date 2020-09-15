@@ -103,7 +103,7 @@
 							- <b>{(m.percent)} %</b>
 						</div>
 					</div>
-					<div class="wrap" v-else-if="m.type === Client.MsgType['upload']">
+					<div class="wrap upload" v-else-if="m.type === Client.MsgType['upload']">
 						<div class="meta">
 							<span class="peer">
 								<span class="avatar" :style="{'background-color': m.peer.avatar}"></span>
@@ -120,13 +120,27 @@
 							<div v-else>
 								<div v-for="(k, name) in m.res">
 									<a v-if="k && !k.err" v-bind:href="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" target="_blank" v-bind:title="k.name">
-										<img v-if="k.mimetype.startsWith('image/png')" v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
-										<img v-else-if="k.mimetype.startsWith('image/jpeg')" v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
-										<img v-else-if="k.mimetype.startsWith('image/gif')" v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
-										<img v-else-if="k.mimetype.startsWith('application/vnd.ms-excel')" src="{{ .Config.RootURL }}/static/icons/xls.jpg" class="upload icon" />
-										<img v-else-if="k.mimetype.startsWith('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')" src="{{ .Config.RootURL }}/static/icons/xls.jpg" class="upload icon" />
-										<img v-else-if="k.mimetype.startsWith('application/pdf')" src="{{ .Config.RootURL }}/static/icons/pdf.jpg" class="upload icon" />
-										<img v-else-if="k.mimetype.startsWith('text/plain')" src="{{ .Config.RootURL }}/static/icons/txt.png" class="upload icon" />
+										<img v-if="k.mimetype.startsWith('image/png')"
+											@load="scrollToNewester"
+											v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
+										<img v-else-if="k.mimetype.startsWith('image/jpeg')"
+											@load="scrollToNewester"
+											v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
+										<img v-else-if="k.mimetype.startsWith('image/gif')"
+											@load="scrollToNewester"
+											v-bind:src="'{{ .Config.RootURL }}/r/' + _room.id  + '/uploaded/' + k.id" class="upload" />
+										<img v-else-if="k.mimetype.startsWith('application/vnd.ms-excel')"
+											@load="scrollToNewester"
+											src="{{ .Config.RootURL }}/static/icons/xls.jpg" class="upload icon" />
+										<img v-else-if="k.mimetype.startsWith('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')"
+											@load="scrollToNewester"
+											src="{{ .Config.RootURL }}/static/icons/xls.jpg" class="upload icon" />
+										<img v-else-if="k.mimetype.startsWith('application/pdf')"
+											@load="scrollToNewester"
+											src="{{ .Config.RootURL }}/static/icons/pdf.jpg" class="upload icon" />
+										<img v-else-if="k.mimetype.startsWith('text/plain')"
+											@load="scrollToNewester"
+											src="{{ .Config.RootURL }}/static/icons/txt.png" class="upload icon" />
 										<span v-else>{( k.name )}</span>
 									</a>
 									<span v-if="k && k.err">
