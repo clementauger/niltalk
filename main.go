@@ -26,6 +26,7 @@ import (
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
+	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/niltalk/internal/hub"
 	"github.com/knadh/niltalk/internal/notify"
 	"github.com/knadh/niltalk/internal/upload"
@@ -38,7 +39,7 @@ import (
 )
 
 var (
-	logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
+	logger = log.New(os.Stderr, "", log.Ldate|log.Ltime|log.Lshortfile)
 	ko     = koanf.New(".")
 
 	// Version of the build injected at build time.
@@ -63,11 +64,12 @@ func loadConfig() {
 		fmt.Println(f.FlagUsages())
 		os.Exit(0)
 	}
-	f.StringSlice("config", []string{"config.toml"},
-		"Path to one or more TOML config files to load in order")
+	f.StringSlice("config", []string{},
+		"Path to one or more TOML config files to load in order. It loads the embedded default configuration file by default.")
 	f.Bool("new-config", false, "generate sample config file")
 	f.Bool("new-unit", false, "generate systemd unit file")
 	f.Bool("onion", false, "Show the onion URL")
+	f.Bool("onionpk", false, "Show the onion private key")
 	f.Bool("version", false, "Show build version")
 	f.Bool("jit", defaultJIT, "build templates just in time")
 	f.Parse(os.Args[1:])
@@ -106,7 +108,21 @@ func loadConfig() {
 			if os.IsNotExist(err) {
 				logger.Fatal("config file not found. If there isn't one yet, run --new-config to generate one.")
 			}
-			logger.Fatalf("error loadng config from file: %v.", err)
+			logger.Fatalf("error loading config from file: %v.", err)
+		}
+	}
+
+	// load the default configuration file
+	if len(cFiles) < 1 {
+		logger.Printf("loading default configuration from embedded assets")
+		sampleBox := rice.MustFindBox("static/samples")
+		b, err := sampleBox.Bytes("config.toml")
+		if err != nil {
+			logger.Fatalf("error reading embedded asset %q: %v.", "static/samples/config.toml", err)
+		}
+		err = ko.Load(rawbytes.Provider(b), toml.Parser())
+		if err != nil {
+			logger.Fatalf("error loading default configuration file: %v.", err)
 		}
 	}
 
@@ -239,6 +255,19 @@ func main() {
 			logger.Fatalf("could not read or write the private key: %v", err)
 		}
 		fmt.Printf("http://%v.onion\n", onionAddr(pk))
+		return // to allow for defers to execute
+	}
+
+	if ko.Bool("onionpk") {
+		pk, err := loadTorPK(torCfg, store)
+		if err != nil {
+			logger.Fatalf("could not read or write the private key: %v", err)
+		}
+		pem, err := pemEncodeKey(pk)
+		if err != nil {
+			logger.Fatalf("could not PEM encode the private key: %v", err)
+		}
+		fmt.Printf("%s\n", pem)
 		return // to allow for defers to execute
 	}
 
