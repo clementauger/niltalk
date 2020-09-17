@@ -55,6 +55,8 @@ type Config struct {
 	Storage           string        `koanf:"storage"`
 
 	Rooms map[string]PredefinedRoom `koanf:"rooms"`
+
+	Theme string `koanf:"theme"`
 }
 
 // PredefinedRoom are static rooms declared in the configuration file.
