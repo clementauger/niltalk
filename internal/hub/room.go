@@ -67,7 +67,6 @@ type Room struct {
 
 	// GrowlHandler is an async callback fired when a peer notifies an offline predefined users.
 	GrowlHandler func(msg, handle, token string)
-	GrowlEnabler []string
 	growlTokens  *tokenStore
 
 	// Peer related requests.
