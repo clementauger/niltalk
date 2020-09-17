@@ -3,7 +3,7 @@
 address = "127.0.0.1:9000"
 
 # No trailing slashes.
-root_url = "http://localhost:9000"
+root_url = "/"
 
 name = "Niltalk chat"
 
@@ -41,8 +41,11 @@ session_cookie = "niltoken"
 # Storage kind, one of redis|memory|fs.
 storage = "memory"
 
+# The theme to use, defaults to knadh, the original theme.
+theme = "knadh"
+
 [tor]
-enabled=false
+enabled=true
 # Path to the tor private key path, leave it empty to store your key within the store.
 privatekey=""
 # Path to the torrc configuration file.
@@ -82,7 +85,7 @@ path=""
     [rooms.local.growl]
     message="{{.UserName}} is calling you. Open {{.URL}}"
     title="Niltalk notification"
-    sound="beep.mp3"
+    sound="knadh/static/beep.mp3"
     motd="Welcome message of the day, type /help to get commands help"
     # A list of predefined users to enable growling.
     [[rooms.local.users]]
@@ -119,7 +122,6 @@ prefix_session = "NIL:SESS:ROOM:%s"
 # Uploaded files are stored in memory exclusively.
 # A maximum amount of memory is configurable, when this limit is reached,
 # oldest files are deleted until enough space is available.
-# Rate limit options are applied per room.
 [upload]
 # Max memory allowed for files storing.
 max-memory="32MB"
@@ -135,3 +137,10 @@ rate-limit-count="10"
 rate-limit-period="1minute"
 # The rate limit burst, if any.
 rate-limit-burst="1"
+
+# Options of the qrcode displayed on the homepage
+[qr]
+# enable a qrcode to the onion address
+tor=true
+# enable a qrcode to the clear net domain.
+clear="http://some.where.com/"

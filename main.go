@@ -5,10 +5,8 @@ package main
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -28,12 +26,7 @@ import (
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/niltalk/internal/hub"
-	"github.com/knadh/niltalk/internal/notify"
 	"github.com/knadh/niltalk/internal/upload"
-	"github.com/knadh/niltalk/store"
-	"github.com/knadh/niltalk/store/fs"
-	"github.com/knadh/niltalk/store/mem"
-	"github.com/knadh/niltalk/store/redis"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -50,11 +43,12 @@ var (
 type App struct {
 	hub          *hub.Hub
 	cfg          *hub.Config
-	tpl          *template.Template
-	tplBox       *rice.Box
+	tpls         map[string]*template.Template
+	themesBox    *rice.Box
 	jit          bool
 	logger       *log.Logger
 	localAddress string
+	qrConfig     qrConfig
 }
 
 func loadConfig() {
@@ -64,13 +58,14 @@ func loadConfig() {
 		fmt.Println(f.FlagUsages())
 		os.Exit(0)
 	}
-	f.StringSlice("config", []string{},
+	f.StringSlice("config", []string{"config.toml"},
 		"Path to one or more TOML config files to load in order. It loads the embedded default configuration file by default.")
 	f.Bool("new-config", false, "generate sample config file")
 	f.Bool("new-unit", false, "generate systemd unit file")
 	f.Bool("onion", false, "Show the onion URL")
 	f.Bool("onionpk", false, "Show the onion private key")
 	f.Bool("version", false, "Show build version")
+	f.Bool("extract-themes", false, "Extract themes assets")
 	f.Bool("jit", defaultJIT, "build templates just in time")
 	f.Parse(os.Args[1:])
 
@@ -100,9 +95,23 @@ func loadConfig() {
 		os.Exit(0)
 	}
 
+	// Exctrat assets.
+	if ok, _ := f.GetBool("extract-themes"); ok {
+		if err := extractThemes(); err != nil {
+			logger.Println(err)
+			os.Exit(1)
+		}
+		cwd, _ := os.Getwd()
+		logger.Printf("Assets extracted to %v/static/themes", cwd)
+		os.Exit(0)
+	}
+
 	// Read the config files.
 	cFiles, _ := f.GetStringSlice("config")
 	for _, f := range cFiles {
+		if _, err := os.Stat(f); len(cFiles) == 1 && f == "config.toml" && os.IsNotExist(err) {
+			continue
+		}
 		logger.Printf("reading config: %s", f)
 		if err := ko.Load(file.Provider(f), toml.Parser()); err != nil {
 			if os.IsNotExist(err) {
@@ -138,38 +147,6 @@ func loadConfig() {
 	ko.Load(posflag.Provider(f, ".", ko), nil)
 }
 
-func newConfigFile() error {
-	if _, err := os.Stat("config.toml"); !os.IsNotExist(err) {
-		return errors.New("config.toml exists. Remove it to generate a new one")
-	}
-
-	// Initialize the static file system into which all
-	// required static assets (.sql, .js files etc.) are loaded.
-	sampleBox := rice.MustFindBox("static/samples")
-	b, err := sampleBox.Bytes("config.toml")
-	if err != nil {
-		return fmt.Errorf("error reading sample config (is binary stuffed?): %v", err)
-	}
-
-	return ioutil.WriteFile("config.toml", b, 0644)
-}
-
-func newUnitFile() error {
-	if _, err := os.Stat("niltalk.service"); !os.IsNotExist(err) {
-		return errors.New("niltalk.service exists. Remove it to generate a new one")
-	}
-
-	// Initialize the static file system into which all
-	// required static assets (.sql, .js files etc.) are loaded.
-	sampleBox := rice.MustFindBox("static/samples")
-	b, err := sampleBox.Bytes("niltalk.service")
-	if err != nil {
-		return fmt.Errorf("error reading sample unit (is binary stuffed?): %v", err)
-	}
-
-	return ioutil.WriteFile("niltalk.service", b, 0644)
-}
-
 func main() {
 	// Load configuration from files.
 	loadConfig()
@@ -181,20 +158,23 @@ func main() {
 		logger.Fatalf("couldn't listen address %q: %v", lnAddr, err)
 	}
 
-	// Load file system boxes
-	rConf := rice.Config{LocateOrder: []rice.LocateMethod{rice.LocateWorkingDirectory, rice.LocateAppended}}
-	tplBox := rConf.MustFindBox("static/templates")
-	assetBox := rConf.MustFindBox("static/static")
-
 	// Initialize global app context.
 	app := &App{
 		logger:       logger,
-		tplBox:       tplBox,
 		localAddress: ln.Addr().String(),
 	}
 	if err := ko.Unmarshal("app", &app.cfg); err != nil {
 		logger.Fatalf("error unmarshalling 'app' config: %v", err)
 	}
+	if app.cfg.Theme == "" {
+		logger.Println("configuration directive 'app.theme' is empty, setting default to 'knadh'")
+		app.cfg.Theme = "knadh"
+	}
+
+	// Load file system boxes
+	rConf := rice.Config{LocateOrder: []rice.LocateMethod{rice.LocateWorkingDirectory, rice.LocateAppended}}
+	themesBox := rConf.MustFindBox("static/themes")
+	app.themesBox = themesBox
 
 	minTime := time.Duration(3) * time.Second
 	if app.cfg.RoomAge < minTime || app.cfg.WSTimeout < minTime {
@@ -202,46 +182,9 @@ func main() {
 	}
 
 	// Initialize store.
-	var store store.Store
-	if app.cfg.Storage == "redis" {
-		var storeCfg redis.Config
-		if err := ko.Unmarshal("store", &storeCfg); err != nil {
-			logger.Fatalf("error unmarshalling 'store' config: %v", err)
-		}
-
-		s, err := redis.New(storeCfg)
-		if err != nil {
-			log.Fatalf("error initializing store: %v", err)
-		}
-		store = s
-
-	} else if app.cfg.Storage == "memory" {
-		var storeCfg mem.Config
-		if err := ko.Unmarshal("store", &storeCfg); err != nil {
-			logger.Fatalf("error unmarshalling 'store' config: %v", err)
-		}
-
-		s, err := mem.New(storeCfg)
-		if err != nil {
-			log.Fatalf("error initializing store: %v", err)
-		}
-		store = s
-
-	} else if app.cfg.Storage == "fs" {
-		var storeCfg fs.Config
-		if err := ko.Unmarshal("store", &storeCfg); err != nil {
-			logger.Fatalf("error unmarshalling 'store' config: %v", err)
-		}
-
-		s, err := fs.New(storeCfg, logger)
-		if err != nil {
-			log.Fatalf("error initializing store: %v", err)
-		}
-		store = s
-		defer s.Close()
-
-	} else {
-		logger.Fatal("app.storage must be one of redis|memory|fs")
+	store, err := app.makeStore()
+	if err != nil {
+		logger.Fatalf("failed to create the store instance: %v", err)
 	}
 
 	var torCfg torCfg
@@ -277,41 +220,18 @@ func main() {
 		logger.Fatalf("error unmarshalling 'rooms' config: %v", err)
 	}
 	// setup predefined rooms
-	for _, room := range app.cfg.Rooms {
-		r, err := app.hub.AddPredefinedRoom(room.ID, room.Name, room.Password)
-		if err != nil {
-			logger.Printf("error creating a predefined room %q: %v", room.Name, err)
-			continue
-		}
-		r.PredefinedUsers = make([]hub.PredefinedUser, len(room.Users), len(room.Users))
-		copy(r.PredefinedUsers, room.Users)
-		for _, u := range r.PredefinedUsers {
-			if u.Growl {
-				r.GrowlEnabler = append(r.GrowlEnabler, "@"+u.Name)
-			}
-		}
-		if len(r.GrowlEnabler) > 0 {
-			n := notify.New(room.Growl, "http://"+app.localAddress, r.ID, app.logger, assetBox)
-			if err = n.Init(); err != nil {
-				logger.Printf("error setting up growl notifications for the predefined room %q: %v", room.Name, err)
-				continue
-			}
-			r.GrowlHandler = n.OnGrowlMessage
-		}
-		_, err = app.hub.ActivateRoom(r.ID)
-		if err != nil {
-			logger.Printf("error activating a predefined room %q: %v", room.Name, err)
-			continue
-		}
+	err = app.loadPredefinedRooms(themesBox)
+	if err != nil {
+		logger.Fatalf("error loading predefined rooms: %v", err)
 	}
 
 	// Compile static templates.
-	tpl, err := app.buildTpl()
+	tpls, err := app.buildTpls()
 	if err != nil {
 		logger.Fatalf("error compiling templates: %v", err)
 	}
 	app.jit = ko.Bool("jit")
-	app.tpl = tpl
+	app.tpls = tpls
 
 	// Setup the file upload store.
 	var uploadCfg upload.Config
@@ -340,9 +260,28 @@ func main() {
 	// Views.
 	r.Get("/r/{roomID}", wrap(handleRoomPage, app, hasAuth|hasRoom))
 
+	// QRCode.
+	if err := ko.Unmarshal("qr", &app.qrConfig); err != nil {
+		logger.Fatalf("error unmarshalling 'qr' config: %v", err)
+	}
+	if !torCfg.Enabled {
+		app.qrConfig.Tor = false //disable it anyways.
+	}
+	if app.qrConfig.Tor && torCfg.Enabled {
+		pk, err := loadTorPK(torCfg, store)
+		if err != nil {
+			logger.Fatalf("could not read or write the private key: %v", err)
+		}
+		onion := fmt.Sprintf("http://%v.onion\n", onionAddr(pk))
+		r.Get("/here.tor", genQRCode(onion))
+	}
+	if app.qrConfig.Clear != "" {
+		r.Get("/here.clear", genQRCode(app.qrConfig.Clear))
+	}
+
 	// Assets.
-	assets := http.StripPrefix("/static/", http.FileServer(assetBox.HTTPBox()))
-	r.Get("/static/*", assets.ServeHTTP)
+	assets := http.StripPrefix("/static/", http.FileServer(themesBox.HTTPBox()))
+	r.Get("/static/*", noDirListHandler(assets.ServeHTTP))
 
 	// Start the app.
 	if torCfg.Enabled {
@@ -511,30 +450,4 @@ func fileWatcher(files ...string) chan struct{} {
 		}()
 	}
 	return out
-}
-
-func (a *App) getTpl() (*template.Template, error) {
-	if a.jit {
-		return a.buildTpl()
-	}
-	return a.tpl, nil
-}
-
-func (a *App) buildTpl() (*template.Template, error) {
-	tpl := template.New("")
-	err := a.tplBox.Walk("/", func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		s, err := a.tplBox.String(path)
-		if err != nil {
-			return err
-		}
-		tpl, err = tpl.Parse(s)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	return tpl, err
 }
