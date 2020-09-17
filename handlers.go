@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	qrcode "github.com/skip2/go-qrcode"
+
 	"github.com/go-chi/chi"
 	"github.com/gorilla/websocket"
 	"github.com/knadh/niltalk/internal/hub"
@@ -240,11 +242,13 @@ func respondHTML(tplName string, data tplData, statusCode int, w http.ResponseWr
 		return
 	}
 	err = tpl.ExecuteTemplate(w, tplName, struct {
-		Config *hub.Config
-		Data   tplData
+		Config   *hub.Config
+		QRConfig qrConfig
+		Data     tplData
 	}{
-		Config: app.cfg,
-		Data:   data,
+		Config:   app.cfg,
+		QRConfig: app.qrConfig,
+		Data:     data,
 	})
 	if err != nil {
 		app.logger.Printf("error rendering template %s: %s", tplName, err)
@@ -468,5 +472,20 @@ func handleUploaded(store *upload.Store) func(w http.ResponseWriter, r *http.Req
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(up.Data)
+	}
+}
+
+// handleUploaded uploaded files display.
+func genQRCode(content string) func(w http.ResponseWriter, r *http.Request) {
+	var png []byte
+	png, err := qrcode.Encode(content, qrcode.Medium, 256)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err == nil {
+			w.Header().Add("Content-Type", "image/png")
+			w.WriteHeader(http.StatusOK)
+			w.Write(png)
+		} else {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		}
 	}
 }
