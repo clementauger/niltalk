@@ -52,6 +52,9 @@ func (p *Peer) RunListener() {
 		if err != nil {
 			break
 		}
+		if len(m) < 1 {
+			continue
+		}
 		p.processMessage(m)
 	}
 
