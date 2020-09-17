@@ -22,7 +22,10 @@ func (a *App) getTpl() (*template.Template, error) {
 func (a *App) buildTpls() (map[string]*template.Template, error) {
 	res := map[string]*template.Template{}
 	themes := []string{}
-	err := a.themesBox.Walk("/", func(path string, info os.FileInfo, err error) error {
+	err := a.themesBox.Walk("", func(path string, info os.FileInfo, err error) error {
+		if path == "" || path == "." {
+			return nil
+		}
 		if info.IsDir() {
 			if strings.Count(path, "/") < 1 {
 				themes = append(themes, filepath.Base(path))
