@@ -1,0 +1,54 @@
+{{ define "header" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>{{ if .Data.Title }} {{ .Data.Title }} - Niltalk {{ else }}Niltalk &mdash; Instant disposable chat rooms{{ end }}</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="description" content="{{ .Data.Description }}" />
+	<meta name="keywords" content="instant chat, disposable chat" />
+	<base href="{{ .Config.RootURL }}">
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+	<meta property="og:image" content="/static/knadh/static/images/thumbnail.png" />
+	<link rel="shortcut icon" href="/static/knadh/static/images/favicon.png" type="image/x-icon" />
+	<link href="/static/knadh/static/style.css" rel="stylesheet" />
+	<script>
+		{{  if .Data.Room  }}
+			window._room = {
+				id: "{{ .Data.Room.ID }}",
+				name: "{{ .Data.Room.Name }}",
+				auth: {{ .Data.Auth }}
+			};
+		{{  end  }}
+	</script>
+  <link rel="prefetch" href="/static/knadh/static/images/spinner.gif" as="image">
+  <link rel="prefetch" href="/static/knadh/static/images/red-err.webp" as="image">
+  <link rel="prefetch" href="/static/knadh/static/beep.mp3" as="audio">
+  <link rel="prefetch" href="/static/knadh/static/beep.ogg" as="audio">
+</head>
+<body>
+<div class="container">
+	<header class="header">
+		<div class="logo">
+			<a href="/"><img src="/static/knadh/static/images/logo.png" /></a>
+		</div>
+	</header>
+	<div id="app" v-cloak>
+{{  end  }}
+
+
+
+{{  define "footer"  }}
+		<div v-if="notifMessage" :class="notifType" class="notification">{( notifMessage )}</div>
+	</div><!-- app -->
+</div><!-- container -->
+
+<script src="/static/knadh/static/showdown.min.js"></script>
+<script src="/static/knadh/static/notify.min.js"></script>
+<script src="/static/knadh/static/axios.min.js"></script>
+<script src="/static/knadh/static/vue.min.js"></script>
+<script src="/static/knadh/static/client.js"></script>
+<script src="/static/knadh/static/app.js"></script>
+
+</body>
+</html>
+{{  end  }}
