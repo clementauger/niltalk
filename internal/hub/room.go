@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -121,6 +122,8 @@ func (r *Room) Login(roomPwd, handle, handlePwd string, roomAge time.Duration) (
 		}
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	var connected bool
 	r.op <- func() {
 		for p := range r.peers {
@@ -129,7 +132,9 @@ func (r *Room) Login(roomPwd, handle, handlePwd string, roomAge time.Duration) (
 				break
 			}
 		}
+		wg.Done()
 	}
+	wg.Wait()
 
 	if connected {
 		return "", ErrAlreadyConnected
@@ -196,6 +201,8 @@ func (r *Room) LoginWithToken(token string, roomAge time.Duration) (string, erro
 		return "", ErrInvalidToken
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	var connected bool
 	r.op <- func() {
 		for p := range r.peers {
@@ -204,7 +211,9 @@ func (r *Room) LoginWithToken(token string, roomAge time.Duration) (string, erro
 				break
 			}
 		}
+		wg.Done()
 	}
+	wg.Wait()
 
 	if connected {
 		return "", ErrAlreadyConnected
