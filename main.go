@@ -413,6 +413,12 @@ func main() {
 	case sig := <-c:
 		logger.Printf("shutting down: %v", sig)
 	}
+	go func() {
+		d := time.Second * 10
+		<-time.After(d)
+		logger.Printf("%v seconds elapsed. Quiting now.", d)
+		os.Exit(1)
+	}()
 }
 
 func fileWatcher(files ...string) chan struct{} {
